@@ -1,0 +1,51 @@
+plugins = []
+
+[functions]
+
+[functions."*"]
+
+[build]
+publish = "/Users/rafalopez/Desktop/Obras-interflex"
+publishOrigin = "default"
+
+[build.environment]
+
+[build.processing]
+
+[build.processing.css]
+
+[build.processing.html]
+
+[build.processing.images]
+
+[build.processing.js]
+
+[build.services]
+
+[[headers]]
+for = "/*"
+
+[headers.values]
+Cache-Control = "no-cache, no-store, must-revalidate"
+Pragma = "no-cache"
+Expires = "0"
+
+[[headers]]
+for = "/sw.js"
+
+[headers.values]
+Content-Type = "application/javascript; charset=utf-8"
+Cache-Control = "no-cache, no-store, must-revalidate"
+Service-Worker-Allowed = "/"
+
+[[redirects]]
+from = "/sw.js"
+to = "/sw.js"
+status = 200.0
+force = false
+
+[redirects.query]
+
+[redirects.conditions]
+
+[redirects.headers]
