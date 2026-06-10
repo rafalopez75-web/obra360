@@ -2109,7 +2109,7 @@ async function entrarApp() {
   document.getElementById('bootScreen').style.display = 'none';
   document.getElementById('loginScreen').classList.remove('active');
   document.getElementById('app').classList.add('active');
-  document.getElementById('userAvatar').textContent = perfilUsuario.nombre.charAt(0).toUpperCase();
+  document.getElementById('userAvatar').textContent = perfilUsuario.name.charAt(0).toUpperCase();
 
   // Subbar
   if (tieneAccesoGlobal(perfilUsuario)) {
@@ -2735,7 +2735,7 @@ async function guardarObra(e) {
   try {
     const data = {
       comercial_id: document.getElementById('fComercial').value || null,
-      modificado_por: perfilUsuario.nombre,
+      modificado_por: perfilUsuario.name,
       modificado_en: new Date().toISOString(),
       kam_id: actuaKamValue ? (document.getElementById('fKam').value || null) : null,
       tipo_obra_id: tipoSeleccionado.id,
@@ -2827,7 +2827,7 @@ async function addHistorial(obraId, tipo, descripcion) {
     obra_id: obraId,
     tipo, descripcion,
     usuario_id: perfilUsuario.id,
-    usuario_nombre: perfilUsuario.nombre
+    usuario_nombre: perfilUsuario.name
   });
 }
 
@@ -3004,11 +3004,11 @@ async function pedirMasInfo(obraId) {
   try {
     const { error } = await sb.from('obras').update({
       solicitud_info: true,
-      solicitud_info_por: perfilUsuario.nombre + ' (' + perfilUsuario.rol + ')',
+      solicitud_info_por: perfilUsuario.name + ' (' + perfilUsuario.rol + ')',
       solicitud_info_fecha: new Date().toISOString()
     }).eq('id', obraId);
     if (error) throw error;
-    await addHistorial(obraId, 'info', `${perfilUsuario.nombre} solicitó más información`);
+    await addHistorial(obraId, 'info', `${perfilUsuario.name} solicitó más información`);
     toast('Solicitud enviada al comercial ✓');
     cerrarSheet();
     await cargarObras();
@@ -3133,9 +3133,9 @@ function abrirNotificaciones() {
 
 // ============ MENU & USUARIOS ============
 function abrirMenuUsuario() {
-  document.getElementById('menuNombre').textContent = perfilUsuario.nombre;
+  document.getElementById('menuNombre').textContent = perfilUsuario.name;
   document.getElementById('menuEmail').textContent = perfilUsuario.email;
-  document.getElementById('menuAvatar').textContent = perfilUsuario.nombre.charAt(0).toUpperCase();
+  document.getElementById('menuAvatar').textContent = perfilUsuario.name.charAt(0).toUpperCase();
   const rolNames = {director:'Director Comercial', coordinador:'Coordinador', kam:'KAM', comercial:'Comercial'};
   const rolEl = document.getElementById('menuRol');
   rolEl.textContent = rolNames[perfilUsuario.rol];
@@ -3377,7 +3377,7 @@ async function importarExcel(e) {
       margen: idx.margen >= 0 ? (parseFloat(cols[idx.margen]) || null) : null,
       perdida_contra: idx.perdida_contra >= 0 ? cols[idx.perdida_contra] || null : null,
       seguimiento: idx.notas >= 0 ? cols[idx.notas] || null : null,
-      modificado_por: perfilUsuario.nombre,
+      modificado_por: perfilUsuario.name,
       modificado_en: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
