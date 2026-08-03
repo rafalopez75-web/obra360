@@ -2042,6 +2042,15 @@ async function handleLogin(e) {
     }
     sesion = data.session;
     await cargarPerfil();
+    if (perfilUsuario.activo === false) {
+      await sb.auth.signOut();
+      sesion = null;
+      perfilUsuario = null;
+      mostrarMsgLogin('Tu cuenta ha sido dada de baja. Contacta con tu administrador.', 'error');
+      btn.disabled = false;
+      btn.textContent = 'Entrar';
+      return;
+    }
     await entrarApp();
   } catch (err) {
     console.error(err);
@@ -2085,6 +2094,15 @@ async function init() {
       sesion = data.session;
       try {
         await cargarPerfil();
+        if (perfilUsuario.activo === false) {
+          await sb.auth.signOut();
+          sesion = null;
+          perfilUsuario = null;
+          document.getElementById('bootScreen').style.display = 'none';
+          document.getElementById('loginScreen').classList.add('active');
+          mostrarMsgLogin('Tu cuenta ha sido dada de baja. Contacta con tu administrador.', 'error');
+          return;
+        }
         await entrarApp();
       } catch (err) {
         document.getElementById('bootScreen').style.display = 'none';
@@ -2232,7 +2250,7 @@ function llenarSelectComerciales() {
 
 function llenarSelectKams() {
   const sel = document.getElementById('fKam');
-  const kams = profiles.filter(p => p.rol === 'kam');
+  const kams = profiles.filter(p => p.rol === 'kam' && p.activo !== false);
   sel.innerHTML = '<option value="">Sin asignar</option>';
   kams.forEach(k => sel.innerHTML += `<option value="${k.id}">${k.nombre}</option>`);
 }
@@ -3179,16 +3197,34 @@ function renderUsuarios() {
   document.getElementById('usersList').innerHTML = profiles.map(u => {
     const regs = regionesDeUsuario(u);
     const regsTxt = regs === 'todas' ? 'Acceso global' : (Array.isArray(regs) ? regs.join(', ') : 'Sin asignar');
-    return `<div class="user-card">
+    const inactivo = u.activo === false;
+    const esUnoMismo = u.id === perfilUsuario.id;
+    return `<div class="user-card" style="${inactivo ? 'opacity:0.55;' : ''}">
       <div class="avatar" style="width:40px;height:40px;font-size:14px;border-radius:50%;">${escapeHtml(u.nombre.charAt(0).toUpperCase())}</div>
       <div class="user-card-info">
-        <div class="user-card-name">${escapeHtml(u.nombre)}</div>
+        <div class="user-card-name">${escapeHtml(u.nombre)}${inactivo ? ' <span style="color:var(--red);font-weight:700;font-size:10px;text-transform:uppercase;">· Inactivo</span>' : ''}</div>
         <div class="user-card-email">${escapeHtml(u.email)}</div>
         <div class="user-card-email" style="margin-top:2px;color:var(--navy);font-weight:600;">📍 ${regsTxt}</div>
+        ${esUnoMismo ? '' : `<button type="button" onclick="toggleActivoUsuario('${u.id}', ${!inactivo})" style="margin-top:6px;padding:4px 10px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;border-radius:5px;border:1px solid ${inactivo ? 'var(--navy)' : 'var(--red)'};color:${inactivo ? 'var(--navy)' : 'var(--red)'};background:var(--surface);cursor:pointer;">${inactivo ? 'Reactivar' : 'Dar de baja'}</button>`}
       </div>
       <span class="role-tag role-${u.rol}">${rolNames[u.rol]}</span>
     </div>`;
   }).join('');
+}
+
+async function toggleActivoUsuario(id, activoActual) {
+  const nuevoEstado = !activoActual;
+  const msg = nuevoEstado
+    ? '¿Reactivar a este usuario? Podrá volver a iniciar sesión.'
+    : '¿Dar de baja a este usuario? No podrá iniciar sesión y dejará de aparecer para asignar obras nuevas.';
+  if (!confirm(msg)) return;
+  const { error } = await sb.from('profiles').update({ activo: nuevoEstado }).eq('id', id);
+  if (error) { toast('Error al actualizar usuario', 'error'); console.error(error); return; }
+  toast(nuevoEstado ? 'Usuario reactivado' : 'Usuario dado de baja');
+  await cargarProfiles();
+  llenarSelectComerciales();
+  llenarSelectKams();
+  renderUsuarios();
 }
 
 function onRolChange() {
