@@ -2411,13 +2411,13 @@ function renderDetalle(obra) {
   }
   if (obra.solicitud_info) {
     const esPropietario = obra.creado_por === perfilUsuario.id;
-    html += `<div class="request-banner"><div class="request-banner-icon">!</div><div class="request-banner-content"><div class="request-banner-title">Más información</div><div class="request-banner-text">${obra.solicitud_info_por || 'Solicitada'}</div></div>${esPropietario || ['director','coordinador','kam'].includes(perfilUsuario.rol) ? `<button class="btn-clear-request" onclick="resolverSolicitud()">Resuelto</button>` : ''}</div>`;
+    html += `<div class="request-banner"><div class="request-banner-icon">!</div><div class="request-banner-content"><div class="request-banner-title">Más información</div><div class="request-banner-text">${escapeHtml(obra.solicitud_info_por) || 'Solicitada'}</div></div>${esPropietario || ['director','coordinador','kam'].includes(perfilUsuario.rol) ? `<button class="btn-clear-request" onclick="resolverSolicitud()">Resuelto</button>` : ''}</div>`;
   }
 
   html += `<div class="detail-header">
     <div class="detail-meta">
       <span class="tag-small">Ref #${obra.num_ref || obra.id}</span>
-      <span class="tag-small">${obra.region || '—'}</span>
+      <span class="tag-small">${escapeHtml(obra.region) || '—'}</span>
       <span class="estado-pill ${estadoClass}">${obra.estado}</span>
       ${obra.actua_kam ? '<span class="tag-small gold">KAM</span>' : ''}
       ${vencida ? '<span class="tag-small vencida">Vencida</span>' : ''}
@@ -2425,8 +2425,8 @@ function renderDetalle(obra) {
     <div class="detail-top">
       <div class="detail-icon">${tipo.svg}</div>
       <div class="detail-info">
-        <div class="detail-tipo">${obra.proyecto || tipoNombre}</div>
-        <div class="detail-lugar">${obra.direccion || '—'}${obra.poblacion ? ', ' + obra.poblacion : ''}</div>
+        <div class="detail-tipo">${escapeHtml(obra.proyecto) || escapeHtml(tipoNombre)}</div>
+        <div class="detail-lugar">${escapeHtml(obra.direccion) || '—'}${obra.poblacion ? ', ' + escapeHtml(obra.poblacion) : ''}</div>
       </div>
     </div>
   </div>
@@ -2436,29 +2436,29 @@ function renderDetalle(obra) {
   </div>`;
 
   if (obra.descripcion) {
-    html += `<div class="detail-section"><div class="detail-section-title">Descripción</div><div class="observaciones-box">${obra.descripcion}</div></div>`;
+    html += `<div class="detail-section"><div class="detail-section-title">Descripción</div><div class="observaciones-box">${escapeHtml(obra.descripcion)}</div></div>`;
   }
 
   html += `<div class="detail-section"><div class="detail-section-title">Personas</div>
     <div class="info-list">
-      <div class="info-row"><div class="info-row-label">Comercial</div><div class="info-row-value ${comercial?'':'empty-val'}">${comercial ? comercial.nombre : 'Sin asignar'}</div></div>
-      ${modPor ? `<div class="info-row"><div class="info-row-label">Últ. modificación</div><div class="info-row-value" style="color:var(--text-3);font-size:12px;">✏️ ${modPor}</div></div>` : ''}
-      ${obra.actua_kam ? `<div class="info-row"><div class="info-row-label">KAM</div><div class="info-row-value ${kam?'':'empty-val'}">${kam ? kam.nombre : 'Sin asignar'}</div></div>` : ''}
-      <div class="info-row"><div class="info-row-label">Promotor</div><div class="info-row-value ${obra.promotor?'':'empty-val'}">${obra.promotor || '—'}</div></div>
+      <div class="info-row"><div class="info-row-label">Comercial</div><div class="info-row-value ${comercial?'':'empty-val'}">${comercial ? escapeHtml(comercial.nombre) : 'Sin asignar'}</div></div>
+      ${modPor ? `<div class="info-row"><div class="info-row-label">Últ. modificación</div><div class="info-row-value" style="color:var(--text-3);font-size:12px;">✏️ ${escapeHtml(modPor)}</div></div>` : ''}
+      ${obra.actua_kam ? `<div class="info-row"><div class="info-row-label">KAM</div><div class="info-row-value ${kam?'':'empty-val'}">${kam ? escapeHtml(kam.nombre) : 'Sin asignar'}</div></div>` : ''}
+      <div class="info-row"><div class="info-row-label">Promotor</div><div class="info-row-value ${obra.promotor?'':'empty-val'}">${escapeHtml(obra.promotor) || '—'}</div></div>
     </div></div>`;
 
   html += `<div class="detail-section"><div class="detail-section-title">Empresas</div>
     <div class="info-list">
-      <div class="info-row"><div class="info-row-label">Ingeniería</div><div class="info-row-value ${obra.ingenieria?'':'empty-val'}">${obra.ingenieria || '—'}</div></div>
-      <div class="info-row"><div class="info-row-label">Constructora</div><div class="info-row-value ${obra.constructora?'':'empty-val'}">${obra.constructora || '—'}</div></div>
-      <div class="info-row"><div class="info-row-label">Instalador</div><div class="info-row-value ${obra.instalador?'':'empty-val'}">${obra.instalador || '—'}</div></div>
+      <div class="info-row"><div class="info-row-label">Ingeniería</div><div class="info-row-value ${obra.ingenieria?'':'empty-val'}">${escapeHtml(obra.ingenieria) || '—'}</div></div>
+      <div class="info-row"><div class="info-row-label">Constructora</div><div class="info-row-value ${obra.constructora?'':'empty-val'}">${escapeHtml(obra.constructora) || '—'}</div></div>
+      <div class="info-row"><div class="info-row-label">Instalador</div><div class="info-row-value ${obra.instalador?'':'empty-val'}">${escapeHtml(obra.instalador) || '—'}</div></div>
     </div></div>`;
 
   html += `<div class="detail-section"><div class="detail-section-title">Seguimiento</div>
     <div class="info-list">
       <div class="info-row"><div class="info-row-label">Fecha visita</div><div class="info-row-value ${obra.fecha_visita?'':'empty-val'}">${obra.fecha_visita ? formatDate(obra.fecha_visita) : '—'}</div></div>
       <div class="info-row"><div class="info-row-label">Fecha seguimiento</div><div class="info-row-value ${obra.fecha_seguimiento?'':'empty-val'}">${obra.fecha_seguimiento ? formatDate(obra.fecha_seguimiento) : '—'}</div></div>
-      <div class="info-row"><div class="info-row-label">Ofertado</div><div class="info-row-value ${obra.ofertado?'':'empty-val'}">${obra.ofertado || '—'}</div></div>
+      <div class="info-row"><div class="info-row-label">Ofertado</div><div class="info-row-value ${obra.ofertado?'':'empty-val'}">${escapeHtml(obra.ofertado) || '—'}</div></div>
       ${obra.ofertado === 'Sí' ? `
         <div class="info-row"><div class="info-row-label">Cantidad</div><div class="info-row-value ${obra.cantidad?'':'empty-val'}">${obra.cantidad ? '€ ' + Number(obra.cantidad).toLocaleString('es-ES', {minimumFractionDigits:2,maximumFractionDigits:2}) : '—'}</div></div>
         <div class="info-row"><div class="info-row-label">Margen</div><div class="info-row-value ${obra.margen?'':'empty-val'}">${obra.margen ? obra.margen + ' %' : '—'}</div></div>
@@ -2470,11 +2470,11 @@ function renderDetalle(obra) {
     html += `<div class="detail-section"><div class="detail-section-title">Perdida contra</div>
       <div style="background:#fef2f2;border:1px solid var(--red);border-radius:10px;padding:14px;display:flex;align-items:center;gap:12px;">
         <div style="width:36px;height:36px;background:var(--red);color:var(--surface);border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:700;">!</div>
-        <div><div style="font-size:10px;color:var(--red);text-transform:uppercase;letter-spacing:1.5px;font-weight:700;">Competidor</div><div style="font-size:18px;font-weight:700;color:var(--navy);">${obra.perdida_contra}</div></div>
+        <div><div style="font-size:10px;color:var(--red);text-transform:uppercase;letter-spacing:1.5px;font-weight:700;">Competidor</div><div style="font-size:18px;font-weight:700;color:var(--navy);">${escapeHtml(obra.perdida_contra)}</div></div>
       </div></div>`;
   }
 
-  html += `<div class="detail-section"><div class="detail-section-title">Notas</div><div class="observaciones-box ${obra.seguimiento?'':'empty-val'}">${obra.seguimiento || 'Sin notas'}</div></div>`;
+  html += `<div class="detail-section"><div class="detail-section-title">Notas</div><div class="observaciones-box ${obra.seguimiento?'':'empty-val'}">${escapeHtml(obra.seguimiento) || 'Sin notas'}</div></div>`;
 
   if (obra.archivos_lista && obra.archivos_lista.length > 0) {
     html += `<div class="detail-section"><div class="detail-section-title">Archivos (${obra.archivos_lista.length})</div>`;
@@ -2484,10 +2484,11 @@ function renderDetalle(obra) {
       const iconClass = ext === 'pdf' ? 'pdf' : (['xlsx','xls','csv'].includes(ext) ? 'xls' : (esImg ? 'img' : ''));
       const display = esImg ? '📷' : ext.toUpperCase().substring(0,3);
       const kb = (a.tamano / 1024).toFixed(0);
+      const onclickDescarga = escapeHtml(`descargarArchivoStorage(${JSON.stringify(a.storage_path)}, ${JSON.stringify(a.nombre)})`);
       html += `<div class="archivo-item">
         <div class="archivo-icon ${iconClass}">${display}</div>
-        <div class="archivo-info"><div class="archivo-nombre">${a.nombre}</div><div class="archivo-meta">${kb} KB</div></div>
-        <button type="button" class="btn-archivo" onclick="descargarArchivoStorage('${a.storage_path}','${a.nombre.replace(/'/g,"\\\\'")}')">
+        <div class="archivo-info"><div class="archivo-nombre">${escapeHtml(a.nombre)}</div><div class="archivo-meta">${kb} KB</div></div>
+        <button type="button" class="btn-archivo" onclick="${onclickDescarga}">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
         </button>
       </div>`;
@@ -2498,7 +2499,7 @@ function renderDetalle(obra) {
   if (obra.historial && obra.historial.length > 0) {
     html += `<div class="detail-section"><div class="detail-section-title">Historial (${obra.historial.length})</div><div class="historial-list">`;
     obra.historial.forEach(h => {
-      html += `<div class="historial-item"><div class="historial-dot ${h.tipo}"></div><div class="historial-content"><div class="historial-tipo">${tipoHistorialLabel(h.tipo)}</div><div class="historial-desc">${h.descripcion}</div><div class="historial-meta">${h.usuario_nombre || 'Sistema'} · ${formatFechaHora(h.created_at)}</div></div></div>`;
+      html += `<div class="historial-item"><div class="historial-dot ${h.tipo}"></div><div class="historial-content"><div class="historial-tipo">${tipoHistorialLabel(h.tipo)}</div><div class="historial-desc">${escapeHtml(h.descripcion)}</div><div class="historial-meta">${escapeHtml(h.usuario_nombre) || 'Sistema'} · ${formatFechaHora(h.created_at)}</div></div></div>`;
     });
     html += '</div></div>';
   }
@@ -2867,7 +2868,7 @@ function renderArchivosTemp() {
     const kb = (a.tamano / 1024).toFixed(0);
     return `<div class="archivo-item">
       <div class="archivo-icon ${iconClass}">${display}</div>
-      <div class="archivo-info"><div class="archivo-nombre">${a.nombre}</div><div class="archivo-meta">${kb} KB ${a.existente ? '' : '· nuevo'}</div></div>
+      <div class="archivo-info"><div class="archivo-nombre">${escapeHtml(a.nombre)}</div><div class="archivo-meta">${kb} KB ${a.existente ? '' : '· nuevo'}</div></div>
       <button type="button" class="btn-archivo danger" onclick="quitarArchivoTemp(${i})">×</button>
     </div>`;
   }).join('');
