@@ -3348,14 +3348,21 @@ async function importarExcel(e) {
 
   const ESTADOS_VALIDOS = ['Contacto inicial','En desarrollo','Ofertado','En negociación','Ganado','Perdido','Desestimada','Obra terminada'];
   let creadas = 0, actualizadas = 0, errores = 0;
+  const filasConError = [];
 
   for (let i = 1; i < lineas.length; i++) {
     const cols = parseFila(lineas[i]);
     if (cols.every(c => !c)) continue; // fila vacía
+    const filaNum = i + 1; // número de fila tal como se ve en el CSV/Excel (1 = cabecera)
 
     const refCSV = idx.ref >= 0 ? parseInt(cols[idx.ref]) : NaN;
     const proyectoVal = idx.proyecto >= 0 ? cols[idx.proyecto] : '';
-    if (!proyectoVal) { errores++; continue; }
+    if (!proyectoVal) {
+      console.error(`[Import] Fila ${filaNum}: "Proyecto" vacío, fila omitida (Nº Ref CSV: ${isNaN(refCSV) ? 'sin datos' : refCSV})`);
+      filasConError.push(`fila ${filaNum} (Proyecto vacío)`);
+      errores++;
+      continue;
+    }
 
     // Buscar comercial por nombre
     const nombreComercial = idx.comercial >= 0 ? cols[idx.comercial] : '';
@@ -3400,18 +3407,27 @@ async function importarExcel(e) {
       const obraExistente = !isNaN(refCSV) ? obras.find(o => o.num_ref === refCSV) : null;
       if (obraExistente) {
         const { error } = await sb.from('obras').update(data).eq('id', obraExistente.id);
-        if (error) { console.error('[Import] update error:', error); errores++; }
+        if (error) {
+          console.error(`[Import] Fila ${filaNum}: error al actualizar (Nº Ref ${refCSV}):`, error);
+          filasConError.push(`fila ${filaNum} (error al actualizar)`);
+          errores++;
+        }
         else { await addHistorial(obraExistente.id, 'edicion', `Obra actualizada por importación CSV`); actualizadas++; }
       } else {
         data.creado_por = perfilUsuario.id;
         data.solicitud_info = false;
         data.num_ref = (Math.max(0, ...obras.map(o => o.num_ref || 0)) + 1 + creadas);
         const { data: nueva, error } = await sb.from('obras').insert(data).select().single();
-        if (error) { console.error('[Import] insert error:', error); errores++; }
+        if (error) {
+          console.error(`[Import] Fila ${filaNum}: error al crear:`, error);
+          filasConError.push(`fila ${filaNum} (error al crear)`);
+          errores++;
+        }
         else { await addHistorial(nueva.id, 'creacion', `Obra creada por importación CSV`); creadas++; }
       }
     } catch(err) {
-      console.error('[Import] fila error:', err);
+      console.error(`[Import] Fila ${filaNum}: excepción:`, err);
+      filasConError.push(`fila ${filaNum} (excepción: ${err.message || err})`);
       errores++;
     }
   }
@@ -3421,7 +3437,8 @@ async function importarExcel(e) {
   let msg = '';
   if (creadas > 0) msg += `${creadas} creadas`;
   if (actualizadas > 0) msg += `${msg ? ', ' : ''}${actualizadas} actualizadas`;
-  if (errores > 0) msg += `${msg ? ', ' : ''}${errores} con error`;
+  if (errores > 0) msg += `${msg ? ', ' : ''}${errores} con error (${filasConError.join(', ')})`;
+  if (filasConError.length > 0) console.error('[Import] Filas con error:', filasConError.join(' · '));
   toast(msg || 'Sin cambios', creadas + actualizadas > 0 ? 'ok' : 'error');
 }
 
