@@ -2013,6 +2013,15 @@ function toast(msg, tipo='success') {
   t.className = 'toast show ' + tipo;
   setTimeout(() => t.classList.remove('show'), 2800);
 }
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 
 // ============ AUTH ============
 async function handleLogin(e) {
@@ -2282,21 +2291,21 @@ function cardObra(o) {
       <div class="obra-info">
         <div class="obra-meta">
           <span class="tag-small">Ref #${o.num_ref || o.id}</span>
-          <span class="tag-small">${o.region || '—'}</span>
+          <span class="tag-small">${escapeHtml(o.region) || '—'}</span>
           ${o.actua_kam ? '<span class="tag-small gold">KAM</span>' : ''}
           ${vencida ? '<span class="tag-small vencida">Vencida</span>' : ''}
         </div>
-        <div class="obra-tipo">${o.proyecto || tipoNombre}</div>
-        <div class="obra-dir">${o.direccion || '—'}${o.poblacion ? ', ' + o.poblacion : ''}</div>
+        <div class="obra-tipo">${escapeHtml(o.proyecto) || escapeHtml(tipoNombre)}</div>
+        <div class="obra-dir">${escapeHtml(o.direccion) || '—'}${o.poblacion ? ', ' + escapeHtml(o.poblacion) : ''}</div>
       </div>
     </div>
     <div class="obra-footer">
       <div class="obra-comercial">
-        <div class="mini-avatar">${inicial}</div><span>${nombre}</span>
+        <div class="mini-avatar">${escapeHtml(inicial)}</div><span>${escapeHtml(nombre)}</span>
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
         <span class="estado-pill estado-${estadoKey}">${o.estado}</span>
-        ${o.modificado_por ? `<span style="font-size:9px;color:var(--text-3);"> ✏️ ${o.modificado_por}</span>` : ''}
+        ${o.modificado_por ? `<span style="font-size:9px;color:var(--text-3);"> ✏️ ${escapeHtml(o.modificado_por)}</span>` : ''}
       </div>
     </div>
   </div>`;
