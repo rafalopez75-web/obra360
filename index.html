@@ -2363,7 +2363,7 @@ function renderDashboard() {
   const porRegion = {};
   obras.forEach(o => porRegion[o.region || '—'] = (porRegion[o.region || '—']||0)+1);
   document.getElementById('dashboardRegiones').innerHTML = Object.entries(porRegion).map(([k,v]) =>
-    `<div class="dashboard-row"><div class="dashboard-row-label">${k}</div><div class="dashboard-row-value">${v}</div></div>`
+    `<div class="dashboard-row"><div class="dashboard-row-label">${escapeHtml(k)}</div><div class="dashboard-row-value">${v}</div></div>`
   ).join('') || '<div style="color:var(--text-2);font-size:12px;">Sin datos</div>';
 
   const porComp = {};
@@ -3093,9 +3093,9 @@ function abrirNotificaciones() {
         <div class="obra-body">
           <div class="obra-icon">${tipo.svg.replace('viewBox','style="color:var(--navy)" viewBox')}</div>
           <div class="obra-info">
-            <div class="obra-meta"><span class="tag-small">Ref #${o.num_ref || o.id}</span><span class="tag-small">${o.region || '—'}</span></div>
-            <div class="obra-tipo">${o.proyecto || tipo.nombre}</div>
-            ${comercial ? `<div style="font-size:11px;color:var(--text-3);">por ${comercial.nombre}</div>` : ''}
+            <div class="obra-meta"><span class="tag-small">Ref #${o.num_ref || o.id}</span><span class="tag-small">${escapeHtml(o.region) || '—'}</span></div>
+            <div class="obra-tipo">${escapeHtml(o.proyecto) || escapeHtml(tipo.nombre)}</div>
+            ${comercial ? `<div style="font-size:11px;color:var(--text-3);">por ${escapeHtml(comercial.nombre)}</div>` : ''}
           </div>
         </div>
       </div>`;
@@ -3111,12 +3111,12 @@ function abrirNotificaciones() {
         <div class="obra-body">
           <div class="obra-icon">${tipo.svg.replace('viewBox','style="color:var(--navy)" viewBox')}</div>
           <div class="obra-info">
-            <div class="obra-meta"><span class="tag-small">Ref #${o.num_ref || o.id}</span><span class="tag-small">${o.region || '—'}</span></div>
-            <div class="obra-tipo">${o.proyecto || tipo.nombre}</div>
+            <div class="obra-meta"><span class="tag-small">Ref #${o.num_ref || o.id}</span><span class="tag-small">${escapeHtml(o.region) || '—'}</span></div>
+            <div class="obra-tipo">${escapeHtml(o.proyecto) || escapeHtml(tipo.nombre)}</div>
           </div>
         </div>
         <div class="obra-footer" style="background:#fff7ed;">
-          <div style="font-size:11px;color:var(--orange);font-weight:700;text-transform:uppercase;letter-spacing:1px;">${o.solicitud_info_por}</div>
+          <div style="font-size:11px;color:var(--orange);font-weight:700;text-transform:uppercase;letter-spacing:1px;">${escapeHtml(o.solicitud_info_por)}</div>
           <div style="font-size:10px;color:var(--orange);text-transform:uppercase;letter-spacing:1px;font-weight:700;">Más info</div>
         </div>
       </div>`;
@@ -3180,10 +3180,10 @@ function renderUsuarios() {
     const regs = regionesDeUsuario(u);
     const regsTxt = regs === 'todas' ? 'Acceso global' : (Array.isArray(regs) ? regs.join(', ') : 'Sin asignar');
     return `<div class="user-card">
-      <div class="avatar" style="width:40px;height:40px;font-size:14px;border-radius:50%;">${u.nombre.charAt(0).toUpperCase()}</div>
+      <div class="avatar" style="width:40px;height:40px;font-size:14px;border-radius:50%;">${escapeHtml(u.nombre.charAt(0).toUpperCase())}</div>
       <div class="user-card-info">
-        <div class="user-card-name">${u.nombre}</div>
-        <div class="user-card-email">${u.email}</div>
+        <div class="user-card-name">${escapeHtml(u.nombre)}</div>
+        <div class="user-card-email">${escapeHtml(u.email)}</div>
         <div class="user-card-email" style="margin-top:2px;color:var(--navy);font-weight:600;">📍 ${regsTxt}</div>
       </div>
       <span class="role-tag role-${u.rol}">${rolNames[u.rol]}</span>
@@ -3655,12 +3655,12 @@ function buscarProyectoSimilar(texto) {
   }
   
   cont.innerHTML = titulo + sims.map(s => {
-    const info = [s.poblacion, s.provincia, s.region].filter(Boolean).join(', ') || '—';
+    const info = [s.poblacion, s.provincia, s.region].filter(Boolean).map(escapeHtml).join(', ') || '—';
     const estadoBadge = s.estado ? `<span style="background:#e5e7eb;color:#374151;padding:1px 6px;border-radius:10px;font-size:10px;margin-left:4px;">${s.estado}</span>` : '';
-    return `<div onclick="seleccionarProyectoSugerido(${JSON.stringify(s.proyecto)}, event)" 
+    return `<div onclick="seleccionarProyectoSugerido(${JSON.stringify(s.proyecto)}, event)"
       style="margin-top:4px;padding:6px 8px;border-radius:6px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px;transition:background 0.15s;"
       onmouseover="this.style.background='#fff3cd'" onmouseout="this.style.background='transparent'">
-      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📁 <strong>${s.proyecto || ''}</strong>${estadoBadge}</span>
+      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📁 <strong>${escapeHtml(s.proyecto) || ''}</strong>${estadoBadge}</span>
       <span style="color:#888;font-size:11px;white-space:nowrap;">${info}</span>
     </div>`;
   }).join('');
