@@ -3199,13 +3199,15 @@ function renderUsuarios() {
     const regsTxt = regs === 'todas' ? 'Acceso global' : (Array.isArray(regs) ? regs.join(', ') : 'Sin asignar');
     const inactivo = u.activo === false;
     const esUnoMismo = u.id === perfilUsuario.id;
+    // El botón es solo UX: quien no tenga es_admin_app en BD recibe error de RLS igualmente si lo intenta por otra vía
+    const puedeGestionarBaja = perfilUsuario.es_admin_app === true;
     return `<div class="user-card" style="${inactivo ? 'opacity:0.55;' : ''}">
       <div class="avatar" style="width:40px;height:40px;font-size:14px;border-radius:50%;">${escapeHtml(u.nombre.charAt(0).toUpperCase())}</div>
       <div class="user-card-info">
         <div class="user-card-name">${escapeHtml(u.nombre)}${inactivo ? ' <span style="color:var(--red);font-weight:700;font-size:10px;text-transform:uppercase;">· Inactivo</span>' : ''}</div>
         <div class="user-card-email">${escapeHtml(u.email)}</div>
         <div class="user-card-email" style="margin-top:2px;color:var(--navy);font-weight:600;">📍 ${regsTxt}</div>
-        ${esUnoMismo ? '' : `<button type="button" onclick="toggleActivoUsuario('${u.id}', ${!inactivo})" style="margin-top:6px;padding:4px 10px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;border-radius:5px;border:1px solid ${inactivo ? 'var(--navy)' : 'var(--red)'};color:${inactivo ? 'var(--navy)' : 'var(--red)'};background:var(--surface);cursor:pointer;">${inactivo ? 'Reactivar' : 'Dar de baja'}</button>`}
+        ${(esUnoMismo || !puedeGestionarBaja) ? '' : `<button type="button" onclick="toggleActivoUsuario('${u.id}', ${!inactivo})" style="margin-top:6px;padding:4px 10px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;border-radius:5px;border:1px solid ${inactivo ? 'var(--navy)' : 'var(--red)'};color:${inactivo ? 'var(--navy)' : 'var(--red)'};background:var(--surface);cursor:pointer;">${inactivo ? 'Reactivar' : 'Dar de baja'}</button>`}
       </div>
       <span class="role-tag role-${u.rol}">${rolNames[u.rol]}</span>
     </div>`;
