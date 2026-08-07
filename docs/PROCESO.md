@@ -26,3 +26,21 @@ Para el plan de contingencia técnico abierto, ver
   marcado explícitamente como NO EJECUTAR salvo que soporte no resuelva
   la causa raíz. La feature de baja de usuarios está lista pero bloqueada
   por esto.
+
+---
+
+## 2026-08-07
+
+- Rafa pidió un repaso de qué queda pendiente en el proyecto. Encontrados
+  2 commits sin pushear desde el 2026-08-05 (`2a027ba` checkpoint
+  pre-migración TITAN, `befc6aa` creación de este archivo) — pusheados
+  sin incidencia (`3cf56b7..befc6aa`), repo ahora en sincronía con
+  `origin/main`.
+- Confirmado con Rafa: el ticket de soporte de Supabase sobre las
+  columnas de `public.profiles` **sigue abierto, sin resolver**. El plan
+  de contingencia (`plan_contingencia_recreacion_profiles.md`) se
+  mantiene en **NO EJECUTAR** — sin cambios de código en esta sesión, la
+  feature de baja de usuarios sigue bloqueada por lo mismo.
+- Sin más pendientes conocidos tras esta sesión, salvo el propio
+  incidente de Supabase (fuera del control del repo, depende de
+  soporte).
