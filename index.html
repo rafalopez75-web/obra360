@@ -2451,6 +2451,7 @@ function renderDetalle(obra) {
   <div class="form-actions" style="margin-top:0;margin-bottom:20px;padding:0;">
     ${puedoEditar ? `<button class="btn-action primary" onclick="abrirFormEditar(${obra.id})">Editar</button>` : ''}
     ${puedoPedirInfo && !obra.solicitud_info ? `<button class="btn-action gold" onclick="pedirMasInfo(${obra.id})">Más información</button>` : ''}
+    <button class="btn-action secondary" onclick="exportarObraExcel(${obra.id})">Excel</button>
   </div>`;
 
   if (obra.descripcion) {
@@ -3482,10 +3483,9 @@ async function importarExcel(e) {
   toast(msg || 'Sin cambios', creadas + actualizadas > 0 ? 'ok' : 'error');
 }
 
-function exportarExcel() {
-  if (obras.length === 0) { toast('Sin obras para exportar', 'error'); return; }
-  const headers = ['Nº Ref','Proyecto','Descripción','Tipo','Comercial','KAM activo','KAM','Ingeniería','Constructora','Instalador','Promotor','Dirección','Población','Región','Fecha visita','Fecha seguimiento','Vencida','Estado','Ofertado','Cantidad','Margen','Beneficio','Perdida contra','Notas'];
-  const filas = obras.map(o => {
+const EXPORT_HEADERS = ['Nº Ref','Proyecto','Descripción','Tipo','Comercial','KAM activo','KAM','Ingeniería','Constructora','Instalador','Promotor','Dirección','Población','Región','Fecha visita','Fecha seguimiento','Vencida','Estado','Ofertado','Cantidad','Margen','Beneficio','Perdida contra','Notas'];
+
+function filaExportObra(o) {
     const c = profiles.find(p => p.id === o.comercial_id);
     const k = profiles.find(p => p.id === o.kam_id);
     const ben = (o.cantidad && o.margen) ? (Number(o.cantidad) * Number(o.margen) / 100).toFixed(2) : '';
@@ -3499,9 +3499,13 @@ function exportarExcel() {
       o.estado, o.ofertado || '', o.cantidad || '', o.margen || '', ben,
       o.perdida_contra || '', (o.seguimiento || '').replace(/\n/g,' ')
     ];
-  });
+}
+
+function exportarExcel() {
+  if (obras.length === 0) { toast('Sin obras para exportar', 'error'); return; }
+  const filas = obras.map(filaExportObra);
   const esc = v => { const s = String(v == null ? '' : v); return (s.includes(';') || s.includes('"') || s.includes('\n')) ? '"' + s.replace(/"/g, '""') + '"' : s; };
-  const csv = '\uFEFF' + [headers.join(';'), ...filas.map(f => f.map(esc).join(';'))].join('\n');
+  const csv = '\uFEFF' + [EXPORT_HEADERS.join(';'), ...filas.map(f => f.map(esc).join(';'))].join('\n');
   const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
@@ -3510,6 +3514,58 @@ function exportarExcel() {
   link.click();
   URL.revokeObjectURL(url);
   toast('Excel descargado');
+}
+
+// ============ EXCEL POR OBRA (SheetJS, se carga al pulsar el botón) ============
+const XLSX_URL = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+const XLSX_SRI = 'sha512-r22gChDnGvBylk90+2e/ycr3RVrDi8DIOkIGNhJlKfuyQM4tIRAI062MaV8sfjQKYVGjOBaZBOA87z+IhZE9DA==';
+let xlsxCargando = null;
+
+function cargarXLSX() {
+  if (window.XLSX) return Promise.resolve(window.XLSX);
+  if (!xlsxCargando) {
+    xlsxCargando = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = XLSX_URL;
+      s.integrity = XLSX_SRI;
+      s.crossOrigin = 'anonymous';
+      s.onload = () => resolve(window.XLSX);
+      s.onerror = () => { xlsxCargando = null; reject(new Error('No se pudo cargar la librería Excel')); };
+      document.head.appendChild(s);
+    });
+  }
+  return xlsxCargando;
+}
+
+// Una hoja por bloque: datos de la obra, historial y lista de archivos.
+// Historial y archivos se leen de nuevo: la RLS solo devuelve lo que el usuario puede ver.
+async function exportarObraExcel(id) {
+  const obra = obras.find(o => o.id === id);
+  if (!obra) return;
+  try {
+    const [XLSX, historial, archivos] = await Promise.all([
+      cargarXLSX(), cargarHistorialObra(id), cargarArchivosObra(id)
+    ]);
+    const fila = filaExportObra(obra);
+    const datos = [['Campo', 'Valor'], ...EXPORT_HEADERS.map((h, i) => [h, fila[i]])];
+    const hist = [['Fecha', 'Tipo', 'Descripción', 'Usuario'],
+      ...historial.map(h => [formatFechaHora(h.created_at), tipoHistorialLabel(h.tipo), h.descripcion || '', h.usuario_nombre || 'Sistema'])];
+    const arch = [['Nombre', 'Tipo', 'Tamaño (KB)', 'Subido por', 'Fecha'],
+      ...archivos.map(a => {
+        const p = profiles.find(x => x.id === a.subido_por);
+        return [a.nombre || '', a.tipo || '', a.tamano ? Math.round(Number(a.tamano) / 1024) : '', p ? p.nombre : '', formatFechaHora(a.created_at)];
+      })];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(datos), 'Datos');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(hist), 'Historial');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(arch), 'Archivos');
+    const nombre = (obra.proyecto || 'obra').replace(/[^\p{L}\p{N}._-]+/gu, '_').slice(0, 40);
+    XLSX.writeFile(wb, `Obra_${obra.num_ref || obra.id}_${nombre}.xlsx`);
+    toast('Excel descargado');
+  } catch (err) {
+    console.error('Error exportando obra:', err);
+    toast('Error: ' + (err.message || 'No se pudo exportar'), 'error');
+  }
 }
 
 // ============ SHEETS ============
