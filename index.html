@@ -3173,9 +3173,10 @@ function abrirMenuUsuario() {
   } else {
     document.getElementById('menuRegion').textContent = regionesPermitidas(perfilUsuario).join(', ') || 'Sin asignar';
   }
-  // Solo director y coordinador pueden gestionar usuarios
+  // Solo quien tiene es_admin_app (independiente del rol) gestiona usuarios.
+  // Es solo UX: la BD (policy admin_app_actualiza_usuarios) lo exige igualmente.
   document.getElementById('menuBtnUsuarios').style.display =
-    ['director','coordinador'].includes(perfilUsuario.rol) ? '' : 'none';
+    perfilUsuario.es_admin_app === true ? '' : 'none';
   abrirSheet('sheetMenu');
 }
 
