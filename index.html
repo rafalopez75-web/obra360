@@ -341,32 +341,113 @@ input:focus, select:focus, textarea:focus { outline: none; }
   background: var(--navy);
   color: var(--gold);
 }
-/* Filtro de estado en móvil: botón + panel inferior; en escritorio, chips */
+/* Filtro de estado. Escritorio: embudo (5 pasos) + chips; móvil: botón + panel inferior */
+.embudo {
+  display: flex;
+  margin: 4px 0 10px;
+}
+.embudo-paso {
+  flex: 1 1 0;
+  min-width: 0;
+  margin-right: -9px;
+  padding: 9px 14px 9px 24px;
+  background: #f3f4f6;
+  color: #4b5563;
+  border: none;
+  text-align: center;
+  cursor: pointer;
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%, 12px 50%);
+  transition: background 0.15s;
+}
+.embudo-paso:first-child {
+  /* Mismo relleno total que el resto (38 px): con flex-basis 0 el relleno suma al ancho */
+  padding-left: 12px;
+  padding-right: 26px;
+  border-radius: 8px 0 0 8px;
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%);
+}
+.embudo-paso:last-child { margin-right: 0; }
+.embudo-paso:hover { background: #e5e7eb; }
+.embudo-paso .num {
+  display: block;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.15;
+  color: #111827;
+  font-variant-numeric: tabular-nums;
+}
+.embudo-paso .nombre {
+  display: block;
+  margin-top: 1px;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.embudo-paso.active { background: #fef3c7; color: #92400e; }
+.embudo-paso.active .num { color: #92400e; }
+.estado-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 12px;
+}
+.estado-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 11px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 12.5px;
+  color: #374151;
+  cursor: pointer;
+}
+.estado-chip b { color: #111827; font-variant-numeric: tabular-nums; }
+.estado-chip:hover { background: #f3f4f6; }
+.estado-chip.vencidas { border-color: #fca5a5; color: #b91c1c; }
+.estado-chip.vencidas b { color: #b91c1c; }
+.estado-chip.active { background: #fef3c7; border-color: #d97706; color: #92400e; }
+.estado-chip.active b { color: #92400e; }
+.estado-chip.vencidas.active { background: #fee2e2; border-color: #dc2626; color: #991b1b; }
 .filtro-estado-btn {
   display: none;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   width: 100%;
   margin: 4px 0 12px;
   padding: 10px 14px;
   background: var(--surface);
-  border: 1px solid var(--navy);
+  border: 1px solid var(--border);
   border-radius: 10px;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--navy);
+  font-size: 15px;
+  color: #374151;
   text-align: left;
 }
-.filtro-estado-btn .estado-punto { flex-shrink: 0; }
-.filtro-estado-btn .flecha { margin-left: auto; font-size: 12px; }
+.filtro-estado-btn .actual { font-weight: 600; color: var(--navy); }
+.filtro-estado-btn .flecha { margin-left: auto; font-size: 12px; color: #6b7280; }
+.filtro-estado-btn.vencidas .actual { color: #b91c1c; }
 @media (max-width: 767.98px) {
-  .filters-estado { display: none; }
+  .filtro-escritorio { display: none; }
   .filtro-estado-btn { display: flex; }
 }
 .estado-punto {
+  flex-shrink: 0;
   width: 10px; height: 10px;
   border-radius: 50%;
   display: inline-block;
+}
+.contador-badge {
+  min-width: 28px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: #f3f4f6;
+  color: #111827;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
 }
 .estado-grupo {
   font-size: 11px;
@@ -380,17 +461,20 @@ input:focus, select:focus, textarea:focus { outline: none; }
   align-items: center;
   gap: 12px;
   width: 100%;
-  padding: 13px 12px;
+  padding: 12px 12px;
   background: none;
   border: none;
   border-radius: 10px;
   font-size: 15px;
-  color: var(--navy);
+  color: #1f2937;
   text-align: left;
 }
-.estado-opcion.active { background: var(--cream); font-weight: 700; }
-.estado-opcion .contador { margin-left: auto; font-size: 14px; color: var(--text-3); font-variant-numeric: tabular-nums; }
-.estado-opcion.vacia { opacity: 0.5; }
+.estado-opcion .contador-badge { margin-left: auto; }
+.estado-opcion.active { background: #fef3c7; color: #92400e; font-weight: 600; }
+.estado-opcion.active .contador-badge { background: #fde68a; color: #92400e; }
+.estado-opcion.vencidas { color: #b91c1c; }
+.estado-opcion.vencidas .contador-badge, .filtro-estado-btn.vencidas .contador-badge { background: #fee2e2; color: #b91c1c; }
+.estado-opcion.vacia .contador-badge { color: var(--text-3); font-weight: 600; }
 #sheetEstado .sheet-body { padding: 4px 12px 16px; }
 .filter-chip select {
   background: transparent;
@@ -1487,19 +1571,8 @@ textarea.form-input { resize: vertical; min-height: 70px; font-family: inherit; 
         <div class="page-title">Obras</div>
         <div class="page-subtitle" id="obrasSubtitle">Cargando...</div>
       </div>
-      <button type="button" class="filtro-estado-btn" id="btnFiltroEstado" onclick="abrirFiltroEstado()"><span>Estado: Todas activas</span><span class="flecha">▾</span></button>
-      <div class="filters filters-estado">
-        <button class="filter-chip active" data-estado="todas" onclick="setFiltroEstado('todas')">Todas</button>
-        <button class="filter-chip" data-estado="Contacto inicial" onclick="setFiltroEstado('Contacto inicial')">Contacto</button>
-        <button class="filter-chip" data-estado="En desarrollo" onclick="setFiltroEstado('En desarrollo')">Desarrollo</button>
-        <button class="filter-chip" data-estado="Ofertado" onclick="setFiltroEstado('Ofertado')">Ofertado</button>
-        <button class="filter-chip" data-estado="En negociación" onclick="setFiltroEstado('En negociación')">Negociación</button>
-        <button class="filter-chip" data-estado="Ganado" onclick="setFiltroEstado('Ganado')">Ganado</button>
-        <button class="filter-chip" data-estado="Perdido" onclick="setFiltroEstado('Perdido')">Perdido</button>
-        <button class="filter-chip" data-estado="Obra terminada" onclick="setFiltroEstado('Obra terminada')">🏁 Histórico</button>
-        <button class="filter-chip" data-estado="Desestimada" onclick="setFiltroEstado('Desestimada')">Desestimada</button>
-        <button class="filter-chip" data-estado="vencidas" onclick="setFiltroEstado('vencidas')" style="border-color:var(--red);color:var(--red);">⚠ Vencidas</button>
-      </div>
+      <button type="button" class="filtro-estado-btn" id="btnFiltroEstado" onclick="abrirFiltroEstado()"><span class="actual">Estado: Todas activas</span><span class="flecha">▾</span></button>
+      <div class="filtro-escritorio" id="filtroEstadoEscritorio"></div>
       <div class="filters">
         <div class="filter-chip">
           <select id="filtroRegion" onchange="aplicarFiltros()">
@@ -2356,7 +2429,7 @@ function renderListaObras() {
   if (lista.length === 0) {
     cont.innerHTML = '';
     empty.style.display = 'block';
-    actualizarBotonEstado();
+    renderFiltroEstado();
     return;
   }
   empty.style.display = 'none';
@@ -2406,9 +2479,14 @@ function cardObra(o) {
 function setFiltroEstado(estado) {
   // Si pulsas el que ya está activo (y no es "todas"), vuelves a "todas"
   filtroEstado = (filtroEstado === estado && estado !== 'todas') ? 'todas' : estado;
-  document.querySelectorAll('.filters-estado .filter-chip').forEach(c => c.classList.toggle('active', c.dataset.estado === filtroEstado));
   renderListaObras();
 }
+
+// Escritorio: embudo con las obras en curso y, debajo, chips con vencidas y cerradas
+const EMBUDO_PASOS = [['todas', 'Todas activas'], ['Contacto inicial', 'Contacto inicial'], ['En desarrollo', 'Desarrollo'],
+  ['Ofertado', 'Ofertado'], ['En negociación', 'Negociación']];
+const EMBUDO_CHIPS = [['vencidas', '⚠ Vencidas'], ['Ganado', 'Ganado'], ['Perdido', 'Perdido'],
+  ['Desestimada', 'Desestimada'], ['Obra terminada', 'Histórico']];
 
 // ---- Filtro de estado en móvil (panel inferior) ----
 const ESTADO_GRUPOS = [
@@ -2440,21 +2518,33 @@ function obrasParaContadores() {
   return lista;
 }
 
-function actualizarBotonEstado() {
+// Contadores del embudo, de los chips y del botón de móvil; se rehace con cada cambio de lista o búsqueda
+function renderFiltroEstado() {
   const btn = document.getElementById('btnFiltroEstado');
-  if (!btn) return;
-  const n = filtrarPorEstado(obrasParaContadores(), filtroEstado).length;
+  const esc = document.getElementById('filtroEstadoEscritorio');
+  if (!btn || !esc) return;
+  const base = obrasParaContadores();
+  const n = estado => filtrarPorEstado(base, estado).length;
+  const arg = estado => escapeHtml(JSON.stringify(estado));
+  esc.innerHTML = `<div class="embudo">${EMBUDO_PASOS.map(([estado, nombre]) =>
+      `<button type="button" class="embudo-paso ${estado === filtroEstado ? 'active' : ''}" data-estado="${escapeHtml(estado)}" onclick="setFiltroEstado(${arg(estado)})">
+        <span class="num">${n(estado)}</span><span class="nombre">${nombre}</span></button>`).join('')}</div>
+    <div class="estado-chips">${EMBUDO_CHIPS.map(([estado, nombre]) =>
+      `<button type="button" class="estado-chip ${estado === 'vencidas' ? 'vencidas' : ''} ${estado === filtroEstado ? 'active' : ''}" data-estado="${escapeHtml(estado)}" onclick="setFiltroEstado(${arg(estado)})">
+        ${nombre} <b>${n(estado)}</b></button>`).join('')}</div>`;
+  btn.classList.toggle('vencidas', filtroEstado === 'vencidas');
   btn.innerHTML = `<span class="estado-punto" style="background:${ESTADO_PUNTO[filtroEstado] || 'var(--navy)'}"></span>
-    <span>Estado: ${escapeHtml(nombreFiltroEstado(filtroEstado))} (${n})</span><span class="flecha">▾</span>`;
+    <span>Estado: <span class="actual">${escapeHtml(nombreFiltroEstado(filtroEstado))}</span></span>
+    <span class="contador-badge">${n(filtroEstado)}</span><span class="flecha">▾</span>`;
 }
 
 function abrirFiltroEstado() {
   const base = obrasParaContadores();
   const opcion = estado => {
     const n = filtrarPorEstado(base, estado).length;
-    return `<button type="button" class="estado-opcion ${estado === filtroEstado ? 'active' : ''} ${n ? '' : 'vacia'}" onclick="elegirFiltroEstado(${escapeHtml(JSON.stringify(estado))})">
+    return `<button type="button" class="estado-opcion ${estado === 'vencidas' ? 'vencidas' : ''} ${estado === filtroEstado ? 'active' : ''} ${n ? '' : 'vacia'}" onclick="elegirFiltroEstado(${escapeHtml(JSON.stringify(estado))})">
       <span class="estado-punto" style="background:${ESTADO_PUNTO[estado]}"></span>
-      <span>${escapeHtml(nombreFiltroEstado(estado))}</span><span class="contador">${n}</span></button>`;
+      <span>${escapeHtml(nombreFiltroEstado(estado))}</span><span class="contador-badge">${n}</span></button>`;
   };
   document.getElementById('sheetEstadoBody').innerHTML = opcion('todas') + opcion('vencidas') +
     ESTADO_GRUPOS.map(([grupo, estados]) => `<div class="estado-grupo">${grupo}</div>` + estados.map(opcion).join('')).join('');
@@ -2463,7 +2553,6 @@ function abrirFiltroEstado() {
 
 function elegirFiltroEstado(estado) {
   filtroEstado = estado;
-  document.querySelectorAll('.filters-estado .filter-chip').forEach(c => c.classList.toggle('active', c.dataset.estado === filtroEstado));
   renderListaObras();
   cerrarSheet();
 }
@@ -4043,7 +4132,7 @@ function aplicarBusquedaProyecto() {
   if (info) {
     info.textContent = q ? (visibles + ' obra(s) encontrada(s)') : '';
   }
-  actualizarBotonEstado();
+  renderFiltroEstado();
 }
 
 function limpiarBusquedaProyecto() {
