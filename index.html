@@ -2454,6 +2454,7 @@ function renderDetalle(obra) {
   <div class="form-actions" style="margin-top:0;margin-bottom:20px;padding:0;">
     ${puedoEditar ? `<button class="btn-action primary" onclick="abrirFormEditar(${obra.id})">Editar</button>` : ''}
     ${puedoPedirInfo && !obra.solicitud_info ? `<button class="btn-action gold" onclick="pedirMasInfo(${obra.id})">Más información</button>` : ''}
+    <button class="btn-action secondary" onclick="exportarObraExcel(${obra.id})">Excel</button>
   </div>`;
 
   if (obra.descripcion) {
@@ -3485,10 +3486,9 @@ async function importarExcel(e) {
   toast(msg || 'Sin cambios', creadas + actualizadas > 0 ? 'ok' : 'error');
 }
 
-function exportarExcel() {
-  if (obras.length === 0) { toast('Sin obras para exportar', 'error'); return; }
-  const headers = ['Nº Ref','Proyecto','Descripción','Tipo','Comercial','KAM activo','KAM','Ingeniería','Constructora','Instalador','Promotor','Dirección','Población','Región','Fecha visita','Fecha seguimiento','Vencida','Estado','Ofertado','Cantidad','Margen','Beneficio','Perdida contra','Notas'];
-  const filas = obras.map(o => {
+const EXPORT_HEADERS = ['Nº Ref','Proyecto','Descripción','Tipo','Comercial','KAM activo','KAM','Ingeniería','Constructora','Instalador','Promotor','Dirección','Población','Región','Fecha visita','Fecha seguimiento','Vencida','Estado','Ofertado','Cantidad','Margen','Beneficio','Perdida contra','Notas'];
+
+function filaExportObra(o) {
     const c = profiles.find(p => p.id === o.comercial_id);
     const k = profiles.find(p => p.id === o.kam_id);
     const ben = (o.cantidad && o.margen) ? (Number(o.cantidad) * Number(o.margen) / 100).toFixed(2) : '';
@@ -3502,9 +3502,13 @@ function exportarExcel() {
       o.estado, o.ofertado || '', o.cantidad || '', o.margen || '', ben,
       o.perdida_contra || '', (o.seguimiento || '').replace(/\n/g,' ')
     ];
-  });
+}
+
+function exportarExcel() {
+  if (obras.length === 0) { toast('Sin obras para exportar', 'error'); return; }
+  const filas = obras.map(filaExportObra);
   const esc = v => { const s = String(v == null ? '' : v); return (s.includes(';') || s.includes('"') || s.includes('\n')) ? '"' + s.replace(/"/g, '""') + '"' : s; };
-  const csv = '\uFEFF' + [headers.join(';'), ...filas.map(f => f.map(esc).join(';'))].join('\n');
+  const csv = '\uFEFF' + [EXPORT_HEADERS.join(';'), ...filas.map(f => f.map(esc).join(';'))].join('\n');
   const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
@@ -3513,6 +3517,157 @@ function exportarExcel() {
   link.click();
   URL.revokeObjectURL(url);
   toast('Excel descargado');
+}
+
+// ============ EXCEL POR OBRA (ExcelJS, se carga al pulsar el botón) ============
+// ExcelJS y no SheetJS: la edición gratuita de SheetJS no escribe negrita, ajuste de texto ni filas fijas.
+const EXCELJS_URL = 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js';
+const EXCELJS_SRI = 'sha512-dlPw+ytv/6JyepmelABrgeYgHI0O+frEwgfnPdXDTOIZz+eDgfW07QXG02/O8COfivBdGNINy+Vex+lYmJ5rxw==';
+const XL_EUR = '#,##0.00 "€"';
+const XL_FECHA = 'dd/mm/yyyy';
+const XL_FECHA_HORA = 'dd/mm/yyyy hh:mm';
+let exceljsCargando = null;
+
+function cargarExcelJS() {
+  if (window.ExcelJS) return Promise.resolve(window.ExcelJS);
+  if (!exceljsCargando) {
+    exceljsCargando = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = EXCELJS_URL;
+      s.integrity = EXCELJS_SRI;
+      s.crossOrigin = 'anonymous';
+      s.onload = () => resolve(window.ExcelJS);
+      s.onerror = () => { exceljsCargando = null; reject(new Error('No se pudo cargar la librería Excel')); };
+      document.head.appendChild(s);
+    });
+  }
+  return exceljsCargando;
+}
+
+// Excel guarda las fechas sin zona horaria: se pasa la hora local de España como si fuera UTC
+// para que la celda muestre lo mismo que la app.
+function xlFecha(valor) {
+  if (!valor) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(valor)) {
+    const [y, m, d] = valor.split('-').map(Number);
+    return new Date(Date.UTC(y, m - 1, d));
+  }
+  const d = new Date(valor);
+  if (isNaN(d)) return null;
+  return new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), d.getMinutes(), d.getSeconds()));
+}
+
+function xlNumero(valor) {
+  if (valor === null || valor === undefined || valor === '') return null;
+  const n = Number(valor);
+  return isNaN(n) ? null : n;
+}
+
+// Texto que verá el usuario en la celda, para calcular el ancho de la columna
+function xlTextoCelda(cell) {
+  const v = cell.value;
+  if (v === null || v === undefined) return '';
+  if (v instanceof Date) return cell.numFmt === XL_FECHA_HORA ? '00/00/0000 00:00' : '00/00/0000';
+  if (typeof v === 'number') return cell.numFmt === XL_EUR ? v.toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €' : String(v);
+  return String(v);
+}
+
+// Ancho según el contenido (desde la fila de cabecera); las columnas de texto largo, más anchas y con ajuste
+function xlAjustarColumnas(ws, filaCabecera, columnasLargas) {
+  ws.columns.forEach((col, i) => {
+    let max = 0;
+    col.eachCell({ includeEmpty: false }, (cell, fila) => {
+      if (fila < filaCabecera) return;
+      String(xlTextoCelda(cell)).split('\n').forEach(l => { max = Math.max(max, l.length); });
+    });
+    const larga = columnasLargas.includes(i + 1);
+    col.width = larga ? Math.min(Math.max(max + 2, 30), 80) : Math.min(Math.max(max + 2, 8), 50);
+    if (larga) col.eachCell(cell => { cell.alignment = { wrapText: true, vertical: 'top' }; });
+  });
+}
+
+function xlCabecera(ws, fila) {
+  ws.getRow(fila).font = { bold: true };
+  ws.views = [{ state: 'frozen', ySplit: fila }];
+}
+
+// Una hoja por bloque: datos de la obra, historial y lista de archivos.
+// Historial y archivos se leen de nuevo: la RLS solo devuelve lo que el usuario puede ver.
+async function exportarObraExcel(id) {
+  const obra = obras.find(o => o.id === id);
+  if (!obra) return;
+  try {
+    const [ExcelJS, historial, archivos] = await Promise.all([
+      cargarExcelJS(), cargarHistorialObra(id), cargarArchivosObra(id)
+    ]);
+    const wb = new ExcelJS.Workbook();
+    wb.creator = perfilUsuario.nombre;
+    const ref = obra.num_ref || obra.id;
+
+    // --- Datos: título, autor y una fila por campo (mismo orden que el CSV) ---
+    const fila = filaExportObra(obra);
+    // margen se guarda en puntos (10 = 10 %): en Excel va como porcentaje real
+    const margen = xlNumero(obra.margen);
+    const cantidad = xlNumero(obra.cantidad);
+    const tipados = {
+      'Descripción': obra.descripcion || '',
+      'Fecha visita': [xlFecha(obra.fecha_visita), XL_FECHA],
+      'Fecha seguimiento': [xlFecha(obra.fecha_seguimiento), XL_FECHA],
+      'Cantidad': [cantidad, XL_EUR],
+      'Margen': [margen === null ? null : margen / 100, '0.00%'],
+      'Beneficio': [cantidad !== null && margen ? cantidad * margen / 100 : null, XL_EUR],
+      'Notas': obra.seguimiento || ''
+    };
+    const wsDatos = wb.addWorksheet('Datos');
+    wsDatos.addRow([`Obra ${ref} – ${obra.proyecto || ''}`]).font = { bold: true, size: 14 };
+    wsDatos.addRow([`Generado por ${perfilUsuario.nombre} el ${formatFechaHora(new Date().toISOString())}`]);
+    wsDatos.addRow([]);
+    wsDatos.addRow(['Campo', 'Valor']);
+    EXPORT_HEADERS.forEach((h, i) => {
+      const t = tipados[h];
+      const r = wsDatos.addRow([h, Array.isArray(t) ? t[0] : (t !== undefined ? t : fila[i])]);
+      if (Array.isArray(t)) r.getCell(2).numFmt = t[1];
+    });
+    xlCabecera(wsDatos, 4);
+    xlAjustarColumnas(wsDatos, 4, [2]);
+    wsDatos.getColumn(2).eachCell(cell => { cell.alignment = { horizontal: 'left', vertical: 'top', wrapText: true }; });
+
+    // --- Historial: de más reciente a más antiguo ---
+    const wsHist = wb.addWorksheet('Historial');
+    wsHist.addRow(['Fecha', 'Tipo', 'Descripción', 'Usuario']);
+    [...historial].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).forEach(h => {
+      const r = wsHist.addRow([xlFecha(h.created_at), tipoHistorialLabel(h.tipo), h.descripcion || '', h.usuario_nombre || 'Sistema']);
+      r.getCell(1).numFmt = XL_FECHA_HORA;
+    });
+    xlCabecera(wsHist, 1);
+    xlAjustarColumnas(wsHist, 1, [3]);
+
+    // --- Archivos ---
+    const wsArch = wb.addWorksheet('Archivos');
+    wsArch.addRow(['Nombre', 'Tipo', 'Tamaño (KB)', 'Subido por', 'Fecha']);
+    archivos.forEach(a => {
+      const p = profiles.find(x => x.id === a.subido_por);
+      const r = wsArch.addRow([a.nombre || '', a.tipo || '', a.tamano ? Math.round(Number(a.tamano) / 1024) : null, p ? p.nombre : '', xlFecha(a.created_at)]);
+      r.getCell(3).numFmt = '#,##0';
+      r.getCell(5).numFmt = XL_FECHA_HORA;
+    });
+    xlCabecera(wsArch, 1);
+    xlAjustarColumnas(wsArch, 1, []);
+
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const nombre = (obra.proyecto || 'obra').replace(/[^\p{L}\p{N}._-]+/gu, '_').slice(0, 40);
+    link.href = url;
+    link.download = `Obra_${ref}_${nombre}.xlsx`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    toast('Excel descargado');
+  } catch (err) {
+    console.error('Error exportando obra:', err);
+    toast('Error: ' + (err.message || 'No se pudo exportar'), 'error');
+  }
 }
 
 // ============ SHEETS ============
