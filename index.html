@@ -1986,7 +1986,8 @@ function getTipo(id) {
 }
 function esObraVencida(obra) {
   if (!obra.fecha_seguimiento) return false;
-  if (['Ganado', 'Perdido', 'Desestimada'].includes(obra.estado)) return false;
+  // Estados cerrados: ya no necesitan seguimiento
+  if (['Ganado', 'Perdido', 'Desestimada', 'Obra terminada'].includes(obra.estado)) return false;
   const hoy = new Date(); hoy.setHours(0,0,0,0);
   return new Date(obra.fecha_seguimiento) < hoy;
 }
@@ -2455,6 +2456,7 @@ function renderDetalle(obra) {
     ${puedoEditar ? `<button class="btn-action primary" onclick="abrirFormEditar(${obra.id})">Editar</button>` : ''}
     ${puedoPedirInfo && !obra.solicitud_info ? `<button class="btn-action gold" onclick="pedirMasInfo(${obra.id})">Más información</button>` : ''}
     <button class="btn-action secondary" onclick="exportarObraExcel(${obra.id})">Excel</button>
+    <button class="btn-action secondary" onclick="exportarObraPDF(${obra.id})">Ficha PDF</button>
   </div>`;
 
   if (obra.descripcion) {
@@ -3667,6 +3669,326 @@ async function exportarObraExcel(id) {
   } catch (err) {
     console.error('Error exportando obra:', err);
     toast('Error: ' + (err.message || 'No se pudo exportar'), 'error');
+  }
+}
+
+// ============ FICHA PDF POR OBRA (pdfmake, se carga al pulsar el botón) ============
+const PDFMAKE_URL = 'https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.12/pdfmake.min.js';
+const PDFMAKE_SRI = 'sha512-axXaF5grZBaYl7qiM6OMHgsgVXdSLxqq0w7F4CQxuFyrcPmn0JfnqsOtYHUun80g6mRRdvJDrTCyL8LQqBOt/Q==';
+const PDFMAKE_FONTS_URL = 'https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.12/vfs_fonts.min.js';
+const PDFMAKE_FONTS_SRI = 'sha512-EFlschXPq/G5zunGPRSYqazR1CMKj0cQc8v6eMrQwybxgIbhsfoO5NAMQX3xFDQIbFlViv53o7Hy+yCWw6iZxA==';
+const PDF_NAVY = '#0a1437';
+const PDF_GOLD = '#d97706';
+const PDF_GRIS = '#6b7280';
+const PDF_LINEA = '#d1d5db';
+// Mismos colores que .estado-* en el CSS: [fondo, texto]
+const PDF_ESTADOS = {
+  'Contacto inicial': ['#dbeafe', '#1e40af'], 'En desarrollo': ['#fef3c7', '#92400e'],
+  'Ofertado': ['#fed7aa', '#9a3412'], 'En negociación': ['#e9d5ff', '#6b21a8'],
+  'Ganado': ['#d1fae5', '#065f46'], 'Perdido': ['#fee2e2', '#991b1b'],
+  'Desestimada': ['#fef3c7', '#78350f'], 'Obra terminada': ['#e5e7eb', '#1f2937']
+};
+let pdfmakeCargando = null;
+
+function cargarScript(url, sri) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = url;
+    s.integrity = sri;
+    s.crossOrigin = 'anonymous';
+    s.onload = resolve;
+    s.onerror = () => reject(new Error('No se pudo cargar la librería PDF'));
+    document.head.appendChild(s);
+  });
+}
+
+// Las fuentes (vfs_fonts) se registran sobre window.pdfMake: van después de pdfmake
+function cargarPdfMake() {
+  if (window.pdfMake && window.pdfMake.vfs) return Promise.resolve(window.pdfMake);
+  if (!pdfmakeCargando) {
+    pdfmakeCargando = cargarScript(PDFMAKE_URL, PDFMAKE_SRI)
+      .then(() => cargarScript(PDFMAKE_FONTS_URL, PDFMAKE_FONTS_SRI))
+      .then(() => window.pdfMake)
+      .catch(err => { pdfmakeCargando = null; throw err; });
+  }
+  return pdfmakeCargando;
+}
+
+// Reduce una imagen a JPEG de como mucho maxLado px: las fotos llegan a 5 MB y el logo mide 8000 px
+async function pdfImagenReducida(fuente, maxLado, calidad) {
+  let img;
+  if (fuente instanceof Blob && window.createImageBitmap) {
+    img = await createImageBitmap(fuente);
+  } else {
+    img = new Image();
+    img.src = fuente instanceof Blob ? URL.createObjectURL(fuente) : fuente;
+    await img.decode();
+    if (fuente instanceof Blob) URL.revokeObjectURL(img.src);
+  }
+  const escala = Math.min(1, maxLado / Math.max(img.width, img.height));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(img.width * escala);
+  canvas.height = Math.round(img.height * escala);
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  if (img.close) img.close();
+  return canvas.toDataURL('image/jpeg', calidad);
+}
+
+// Descarga las fotos con la sesión del usuario (la policy del Storage filtra por región).
+// Una foto que no se pueda leer no impide la ficha: sigue en la lista de archivos.
+async function pdfCargarFotos(archivos) {
+  const fotos = [];
+  for (const a of archivos.filter(x => (x.tipo || '').startsWith('image/') && x.storage_path)) {
+    try {
+      const { data, error } = await sb.storage.from('archivos').download(a.storage_path);
+      if (error) throw error;
+      fotos.push({ archivo: a, imagen: await pdfImagenReducida(data, 1000, 0.72) });
+    } catch (err) {
+      console.warn('[PDF] Foto omitida:', a.nombre, err);
+    }
+  }
+  return fotos;
+}
+
+// es-ES no pone separador de miles con 4 cifras (4650,00): se agrupa a mano
+function pdfEuros(n) {
+  const [ent, dec] = Math.abs(Number(n)).toFixed(2).split('.');
+  return (Number(n) < 0 ? '-' : '') + ent.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ',' + dec + ' €';
+}
+
+// Roboto (la fuente de pdfmake) no tiene flechas: el historial usa "→"
+function pdfTexto(v) {
+  return String(v == null ? '' : v).replace(/→/g, '»');
+}
+
+function pdfSeccion(titulo) {
+  return { text: titulo.toUpperCase(), style: 'seccion' };
+}
+
+// Tabla etiqueta/valor sin bordes, con línea fina entre filas
+function pdfTablaCampos(filas) {
+  return {
+    table: { widths: [78, '*'], body: filas.map(([k, v]) => [
+      { text: k, style: 'etiqueta' },
+      typeof v === 'object' && v !== null ? v : { text: v || '—', color: v ? '#111827' : PDF_GRIS }
+    ]) },
+    layout: { hLineWidth: (i, n) => (i === 0 || i === n.table.body.length) ? 0 : 0.5, vLineWidth: () => 0,
+      hLineColor: () => PDF_LINEA, paddingLeft: () => 0, paddingTop: () => 3, paddingBottom: () => 3 }
+  };
+}
+
+function pdfTablaListado(cabecera, filas, widths) {
+  return {
+    table: { headerRows: 1, widths, body: [cabecera.map(t => ({ text: t, style: 'cabeceraTabla' })), ...filas] },
+    layout: { hLineWidth: (i) => i === 1 ? 1 : 0.5, vLineWidth: () => 0,
+      hLineColor: (i) => i === 1 ? PDF_NAVY : PDF_LINEA, fillColor: (i) => i > 0 && i % 2 === 0 ? '#f3f4f6' : null,
+      paddingTop: () => 3, paddingBottom: () => 3 },
+    fontSize: 8
+  };
+}
+
+function pdfDefinicion(obra, historial, archivos, fotos, logo) {
+  const comercial = profiles.find(p => p.id === obra.comercial_id);
+  const kam = profiles.find(p => p.id === obra.kam_id);
+  const ref = obra.num_ref || obra.id;
+  const vencida = esObraVencida(obra);
+  const [estadoFondo, estadoTexto] = PDF_ESTADOS[obra.estado] || ['#e5e7eb', '#1f2937'];
+  const generado = `Generado por ${perfilUsuario.nombre} el ${formatFechaHora(new Date().toISOString())}`;
+  const cantidad = obra.cantidad !== null && obra.cantidad !== '' ? Number(obra.cantidad) : null;
+  const margen = obra.margen !== null && obra.margen !== '' ? Number(obra.margen) : null;
+  const content = [];
+
+  // 1. Cabecera
+  content.push({
+    columns: [
+      logo ? { image: logo, fit: [150, 48] } : { text: 'Interflex', style: 'titulo' },
+      { stack: [
+        { text: 'FICHA DE OBRA', fontSize: 9, bold: true, color: PDF_GRIS, characterSpacing: 1.5 },
+        { text: `Nº Ref ${ref}`, fontSize: 22, bold: true, color: PDF_NAVY },
+        { text: formatFechaHora(new Date().toISOString()).slice(0, 10), fontSize: 9, color: PDF_GRIS }
+      ], alignment: 'right' }
+    ]
+  });
+  content.push({ canvas: [
+    { type: 'line', x1: 0, y1: 0, x2: 510, y2: 0, lineWidth: 1.5, lineColor: PDF_NAVY },
+    { type: 'line', x1: 0, y1: 3, x2: 510, y2: 3, lineWidth: 0.75, lineColor: PDF_GOLD }
+  ], margin: [0, 8, 0, 12] });
+
+  // 2. Proyecto, estado y línea de contexto
+  content.push({ text: obra.proyecto || obra.tipo_obra_nombre || getTipo(obra.tipo_obra_id).nombre, style: 'titulo' });
+  content.push({
+    columns: [
+      { width: 'auto', table: { body: [[{ text: obra.estado.toUpperCase(), bold: true, fontSize: 8, color: estadoTexto,
+          fillColor: estadoFondo, margin: [6, 2, 6, 1] }]] },
+        layout: { hLineWidth: () => 0.75, vLineWidth: () => 0.75, hLineColor: () => estadoTexto, vLineColor: () => estadoTexto,
+          paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 } },
+      vencida ? { width: 'auto', text: 'VENCIDA', bold: true, fontSize: 8, color: '#b91c1c', margin: [8, 3, 0, 0] } : { text: '' }
+    ], margin: [0, 6, 0, 6]
+  });
+  content.push({ text: [obra.poblacion, obra.region, comercial && comercial.nombre,
+      obra.actua_kam && kam ? 'KAM ' + kam.nombre : null].filter(Boolean).join('  ·  ') || '—',
+    fontSize: 10, color: '#374151', margin: [0, 0, 0, 14] });
+
+  // 3. Datos generales | agentes
+  content.push({ columns: [
+    { stack: [pdfSeccion('Datos generales'), pdfTablaCampos([
+      ['Tipo', obra.tipo_obra_nombre || getTipo(obra.tipo_obra_id).nombre],
+      ['Dirección', obra.direccion], ['Población', obra.poblacion], ['Región', obra.region],
+      ['Comercial', comercial ? comercial.nombre : ''], ['KAM', obra.actua_kam ? (kam ? kam.nombre : 'Sin asignar') : 'No actúa'],
+      ...(obra.perdida_contra ? [['Perdida contra', obra.perdida_contra]] : [])
+    ])] },
+    { stack: [pdfSeccion('Agentes'), pdfTablaCampos([
+      ['Ingeniería', obra.ingenieria], ['Constructora', obra.constructora],
+      ['Instalador', obra.instalador], ['Promotor', obra.promotor]
+    ])] }
+  ], columnGap: 24, margin: [0, 0, 0, 14] });
+
+  // 4. Seguimiento y 5. caja económica, lado a lado
+  const celdaEco = (k, v) => ({ stack: [{ text: k.toUpperCase(), fontSize: 7, color: PDF_GRIS, bold: true },
+    { text: v, fontSize: 11, bold: true, color: PDF_NAVY, margin: [0, 2, 0, 0] }], margin: [6, 5, 6, 5] });
+  content.push({ columns: [
+    { width: 180, stack: [pdfSeccion('Seguimiento'), pdfTablaCampos([
+      ['Fecha visita', formatDate(obra.fecha_visita)],
+      ['Próximo seguim.', vencida
+        ? { text: [formatDate(obra.fecha_seguimiento) + '  ', { text: 'VENCIDA', bold: true, color: '#b91c1c' }] }
+        : formatDate(obra.fecha_seguimiento)],
+      ['Últ. modificación', obra.modificado_por || '']
+    ])] },
+    { stack: [pdfSeccion('Económico'), {
+      table: { widths: [48, '*', 48, '*'], body: [[
+        celdaEco('Ofertado', obra.ofertado || '—'),
+        celdaEco('Cantidad', cantidad !== null ? pdfEuros(cantidad) : '—'),
+        celdaEco('Margen', margen !== null ? margen.toLocaleString('es-ES') + ' %' : '—'),
+        celdaEco('Beneficio', cantidad !== null && margen ? pdfEuros(cantidad * margen / 100) : '—')
+      ]] },
+      layout: { hLineWidth: () => 1.25, vLineWidth: (i, n) => (i === 0 || i === 4) ? 1.25 : 0.5,
+        hLineColor: () => PDF_NAVY, vLineColor: (i) => (i === 0 || i === 4) ? PDF_NAVY : PDF_LINEA,
+        fillColor: () => '#fffbeb', paddingLeft: () => 0, paddingRight: () => 0 }
+    }] }
+  ], columnGap: 24, margin: [0, 0, 0, 14] });
+
+  // 6. Descripción y notas
+  const recuadro = texto => ({ table: { widths: ['*'], body: [[{ text: pdfTexto(texto), fontSize: 9, margin: [6, 5, 6, 5] }]] },
+    layout: { hLineWidth: () => 0.75, vLineWidth: () => 0.75, hLineColor: () => PDF_LINEA, vLineColor: () => PDF_LINEA },
+    margin: [0, 0, 0, 14] });
+  if (obra.descripcion) content.push(pdfSeccion('Descripción'), recuadro(obra.descripcion));
+  content.push(pdfSeccion('Notas'), recuadro(obra.seguimiento || '—'));
+
+  // 7. Historial, más reciente primero
+  const hist = [...historial].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  content.push(pdfSeccion(`Historial (${hist.length})`));
+  content.push(hist.length ? { ...pdfTablaListado(['Fecha', 'Tipo', 'Descripción', 'Usuario'],
+    hist.map(h => [formatFechaHora(h.created_at), tipoHistorialLabel(h.tipo), pdfTexto(h.descripcion), h.usuario_nombre || 'Sistema']),
+    [70, 66, '*', 80]), margin: [0, 0, 0, 14] } : { text: 'Sin movimientos', style: 'vacio' });
+
+  // 8. Fotos, 2 por fila; con más de 4 empiezan en página aparte
+  if (fotos.length) {
+    for (let i = 0; i < fotos.length; i += 2) {
+      const fila = { columns: fotos.slice(i, i + 2).map(f => ({ stack: [
+        { image: f.imagen, fit: [243, 182], alignment: 'center' },
+        { text: `${formatFechaHora(f.archivo.created_at)} · ${f.archivo.nombre || ''}`, fontSize: 7, color: PDF_GRIS, margin: [0, 3, 0, 0], alignment: 'center' }
+      ] })).concat(i + 1 < fotos.length ? [] : [{ text: '' }]), columnGap: 24, margin: [0, 0, 0, 12] };
+      // El título va en el mismo bloque que la primera fila para que no quede solo al pie de página
+      content.push(i === 0
+        ? { stack: [pdfSeccion(`Fotos (${fotos.length})`), fila], unbreakable: true, pageBreak: fotos.length > 4 ? 'before' : undefined }
+        : { stack: [fila], unbreakable: true });
+    }
+  }
+
+  // 9. Archivos
+  content.push(pdfSeccion(`Archivos (${archivos.length})`));
+  content.push(archivos.length ? pdfTablaListado(['Nombre', 'Tipo', 'Tamaño', 'Subido por', 'Fecha'],
+    archivos.map(a => {
+      const p = profiles.find(x => x.id === a.subido_por);
+      return [a.nombre || '', a.tipo || '', a.tamano ? Math.round(Number(a.tamano) / 1024).toLocaleString('es-ES') + ' KB' : '',
+        p ? p.nombre : '', formatFechaHora(a.created_at)];
+    }), ['*', 58, 50, 80, 70]) : { text: 'Sin archivos', style: 'vacio' });
+
+  return {
+    pageSize: 'A4',
+    pageOrientation: 'portrait',
+    pageMargins: [42.52, 42.52, 42.52, 42.52],  // 15 mm
+    info: { title: `Ficha de obra ${ref}`, author: perfilUsuario.nombre, creator: 'Obra360' },
+    footer: (pag, total) => ({
+      columns: [
+        { text: `USO INTERNO · Interflex-VIATEC · ${generado}`, fontSize: 7, color: PDF_GRIS },
+        { text: `Pág. ${pag} de ${total}`, fontSize: 7, color: PDF_GRIS, alignment: 'right', width: 'auto' }
+      ], margin: [42.52, 18, 42.52, 0]
+    }),
+    content,
+    styles: {
+      titulo: { fontSize: 17, bold: true, color: PDF_NAVY },
+      seccion: { fontSize: 8, bold: true, color: PDF_NAVY, characterSpacing: 1, margin: [0, 0, 0, 4] },
+      etiqueta: { fontSize: 8, color: PDF_GRIS },
+      cabeceraTabla: { fontSize: 7.5, bold: true, color: PDF_NAVY },
+      vacio: { fontSize: 9, color: PDF_GRIS, italics: true, margin: [0, 0, 0, 14] }
+    },
+    defaultStyle: { font: 'Roboto', fontSize: 9, lineHeight: 1.15 }
+  };
+}
+
+function pdfEsMovil() {
+  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+    (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));
+}
+
+function pdfDescargar(blob, nombre) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = nombre;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// En móvil se comparte; si el navegador exige otro toque (la generación tarda), se ofrece un botón
+async function pdfEntregar(blob, nombre) {
+  const fichero = new File([blob], nombre, { type: 'application/pdf' });
+  if (!pdfEsMovil() || !navigator.canShare || !navigator.canShare({ files: [fichero] })) {
+    pdfDescargar(blob, nombre);
+    toast('Ficha PDF descargada');
+    return;
+  }
+  const compartir = () => navigator.share({ files: [fichero], title: nombre });
+  try {
+    await compartir();
+  } catch (err) {
+    if (err.name === 'AbortError') return;
+    if (err.name !== 'NotAllowedError') { pdfDescargar(blob, nombre); return; }
+    const btn = document.createElement('button');
+    btn.className = 'btn-action primary';
+    btn.textContent = 'Compartir ficha PDF';
+    btn.style.cssText = 'position:fixed;left:16px;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:9999;';
+    btn.onclick = () => { btn.remove(); compartir().catch(e => { if (e.name !== 'AbortError') pdfDescargar(blob, nombre); }); };
+    document.body.appendChild(btn);
+    setTimeout(() => btn.remove(), 30000);
+  }
+}
+
+// Historial y archivos se leen de nuevo: la RLS solo devuelve lo que el usuario puede ver.
+async function exportarObraPDF(id) {
+  const obra = obras.find(o => o.id === id);
+  if (!obra) return;
+  toast('Generando ficha PDF…');
+  try {
+    const [pdfMake, historial, archivos] = await Promise.all([
+      cargarPdfMake(), cargarHistorialObra(id), cargarArchivosObra(id)
+    ]);
+    const logoEl = document.querySelector('.topbar-logo');
+    const [logo, fotos] = await Promise.all([
+      logoEl ? pdfImagenReducida(logoEl.src, 600, 0.85).catch(() => null) : null,
+      pdfCargarFotos(archivos)
+    ]);
+    const def = pdfDefinicion(obra, historial, archivos, fotos, logo);
+    const blob = await new Promise(resolve => pdfMake.createPdf(def).getBlob(resolve));
+    const nombre = (obra.proyecto || 'obra').replace(/[^\p{L}\p{N}._-]+/gu, '_').slice(0, 40);
+    await pdfEntregar(blob, `Ficha_Obra_${obra.num_ref || obra.id}_${nombre}.pdf`);
+  } catch (err) {
+    console.error('Error generando ficha PDF:', err);
+    toast('Error: ' + (err.message || 'No se pudo generar la ficha'), 'error');
   }
 }
 
