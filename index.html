@@ -2312,7 +2312,6 @@ function llenarTipos() {
 // ============ CARGAR DATOS ============
 async function cargarDatos() {
   await Promise.all([cargarProfiles(), cargarObras()]);
-  llenarSelectComerciales();
   llenarSelectKams();
   render();
 }
@@ -2365,24 +2364,22 @@ async function cargarArchivosObra(obraId) {
   return data || [];
 }
 
+// Filtro del listado: quienes son comercial de al menos una obra que el usuario ve.
+// `obras` ya viene filtrado por la RLS (sus regiones; KAM y director, todas).
+// Activos por nombre; los dados de baja al final con "(baja)".
 function llenarSelectComerciales() {
-  // El select de comercial en el formulario ya no existe (cada usuario crea con su propio nombre)
-  // Solo rellenamos el filtro del listado
-
-  // El filtro del listado muestra todos los usuarios visibles para el rol actual
   const selFil = document.getElementById('filtroComercial');
-  selFil.innerHTML = '<option value="todos">Todos</option>';
-  const regsActual = regionesPermitidas(perfilUsuario);
-  const usuariosFiltro = profiles.filter(p => {
-    // Acceso global (director, kam o acceso_global): todos los usuarios
-    if (tieneAccesoGlobal(perfilUsuario)) return true;
-    // Coordinador: además, los usuarios con acceso global (tienen regiones vacías)
-    if (perfilUsuario.rol === 'coordinador' && tieneAccesoGlobal(p)) return true;
-    // Resto: usuarios de sus regiones
-    if (!p.regiones) return false;
-    return p.regiones.some(r => regsActual.includes(r));
-  });
-  usuariosFiltro.forEach(c => selFil.innerHTML += `<option value="${c.id}">${c.nombre}</option>`);
+  const ids = new Set(obras.map(o => o.comercial_id).filter(Boolean));
+  const porNombre = (a, b) => a.nombre.localeCompare(b.nombre, 'es');
+  const comerciales = profiles.filter(p => ids.has(p.id));
+  const activos = comerciales.filter(p => p.activo !== false).sort(porNombre);
+  const bajas = comerciales.filter(p => p.activo === false).sort(porNombre);
+  selFil.innerHTML = '<option value="todos">Todos los comerciales</option>' +
+    activos.map(c => `<option value="${c.id}">${escapeHtml(c.nombre)}</option>`).join('') +
+    bajas.map(c => `<option value="${c.id}">${escapeHtml(c.nombre)} (baja)</option>`).join('');
+  // Si el comercial elegido ya no tiene obras visibles, se vuelve a "Todos los comerciales"
+  if (!comerciales.some(c => c.id === filtroComercial)) filtroComercial = 'todos';
+  selFil.value = filtroComercial;
 }
 
 function llenarSelectKams() {
@@ -2394,6 +2391,7 @@ function llenarSelectKams() {
 
 // ============ RENDER ============
 function render() {
+  llenarSelectComerciales();
   renderListaObras();
   actualizarNotificaciones();
 }
