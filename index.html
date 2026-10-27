@@ -341,6 +341,57 @@ input:focus, select:focus, textarea:focus { outline: none; }
   background: var(--navy);
   color: var(--gold);
 }
+/* Filtro de estado en móvil: botón + panel inferior; en escritorio, chips */
+.filtro-estado-btn {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin: 4px 0 12px;
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 1px solid var(--navy);
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--navy);
+  text-align: left;
+}
+.filtro-estado-btn .estado-punto { flex-shrink: 0; }
+.filtro-estado-btn .flecha { margin-left: auto; font-size: 12px; }
+@media (max-width: 767.98px) {
+  .filters-estado { display: none; }
+  .filtro-estado-btn { display: flex; }
+}
+.estado-punto {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.estado-grupo {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  color: var(--text-3);
+  margin: 16px 4px 6px;
+}
+.estado-opcion {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 13px 12px;
+  background: none;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  color: var(--navy);
+  text-align: left;
+}
+.estado-opcion.active { background: var(--cream); font-weight: 700; }
+.estado-opcion .contador { margin-left: auto; font-size: 14px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.estado-opcion.vacia { opacity: 0.5; }
+#sheetEstado .sheet-body { padding: 4px 12px 16px; }
 .filter-chip select {
   background: transparent;
   border: none;
@@ -1436,17 +1487,18 @@ textarea.form-input { resize: vertical; min-height: 70px; font-family: inherit; 
         <div class="page-title">Obras</div>
         <div class="page-subtitle" id="obrasSubtitle">Cargando...</div>
       </div>
-      <div class="filters">
-        <button class="filter-chip active" onclick="setFiltroEstado('todas', event)">Todas</button>
-        <button class="filter-chip" onclick="setFiltroEstado('Contacto inicial', event)">Contacto</button>
-        <button class="filter-chip" onclick="setFiltroEstado('En desarrollo', event)">Desarrollo</button>
-        <button class="filter-chip" onclick="setFiltroEstado('Ofertado', event)">Ofertado</button>
-        <button class="filter-chip" onclick="setFiltroEstado('En negociación', event)">Negociación</button>
-        <button class="filter-chip" onclick="setFiltroEstado('Ganado', event)">Ganado</button>
-        <button class="filter-chip" onclick="setFiltroEstado('Perdido', event)">Perdido</button>
-        <button class="filter-chip" onclick="setFiltroEstado('Obra terminada', event)">🏁 Histórico</button>
-        <button class="filter-chip" onclick="setFiltroEstado('Desestimada', event)">Desestimada</button>
-        <button class="filter-chip" onclick="setFiltroEstado('vencidas', event)" style="border-color:var(--red);color:var(--red);">⚠ Vencidas</button>
+      <button type="button" class="filtro-estado-btn" id="btnFiltroEstado" onclick="abrirFiltroEstado()"><span>Estado: Todas activas</span><span class="flecha">▾</span></button>
+      <div class="filters filters-estado">
+        <button class="filter-chip active" data-estado="todas" onclick="setFiltroEstado('todas')">Todas</button>
+        <button class="filter-chip" data-estado="Contacto inicial" onclick="setFiltroEstado('Contacto inicial')">Contacto</button>
+        <button class="filter-chip" data-estado="En desarrollo" onclick="setFiltroEstado('En desarrollo')">Desarrollo</button>
+        <button class="filter-chip" data-estado="Ofertado" onclick="setFiltroEstado('Ofertado')">Ofertado</button>
+        <button class="filter-chip" data-estado="En negociación" onclick="setFiltroEstado('En negociación')">Negociación</button>
+        <button class="filter-chip" data-estado="Ganado" onclick="setFiltroEstado('Ganado')">Ganado</button>
+        <button class="filter-chip" data-estado="Perdido" onclick="setFiltroEstado('Perdido')">Perdido</button>
+        <button class="filter-chip" data-estado="Obra terminada" onclick="setFiltroEstado('Obra terminada')">🏁 Histórico</button>
+        <button class="filter-chip" data-estado="Desestimada" onclick="setFiltroEstado('Desestimada')">Desestimada</button>
+        <button class="filter-chip" data-estado="vencidas" onclick="setFiltroEstado('vencidas')" style="border-color:var(--red);color:var(--red);">⚠ Vencidas</button>
       </div>
       <div class="filters">
         <div class="filter-chip">
@@ -1789,6 +1841,16 @@ textarea.form-input { resize: vertical; min-height: 70px; font-family: inherit; 
 </div>
 
 <!-- SHEET NOTIFICACIONES -->
+<!-- FILTRO DE ESTADO (móvil) -->
+<div class="sheet" id="sheetEstado">
+  <div class="sheet-handle"></div>
+  <div class="sheet-header">
+    <div class="sheet-title">Filtrar por estado</div>
+    <button class="sheet-close" onclick="cerrarSheet()">&times;</button>
+  </div>
+  <div class="sheet-body" id="sheetEstadoBody"></div>
+</div>
+
 <div class="sheet" id="sheetNotif">
   <div class="sheet-handle"></div>
   <div class="sheet-header">
@@ -2264,16 +2326,22 @@ function render() {
   actualizarNotificaciones();
 }
 
-function renderListaObras() {
-  let lista = [...obras];
-  // Excluir obras terminadas de la vista normal; solo se ven cuando se filtra por Histórico
-  if (filtroEstado !== 'Obra terminada') {
-    lista = lista.filter(o => o.estado !== 'Obra terminada');
-  }
-  if (filtroEstado === 'vencidas') lista = lista.filter(esObraVencida);
-  else if (filtroEstado !== 'todas') lista = lista.filter(o => o.estado === filtroEstado);
+// Obras terminadas fuera de la vista normal; solo se ven cuando se filtra por Histórico
+function filtrarPorEstado(lista, estado) {
+  if (estado !== 'Obra terminada') lista = lista.filter(o => o.estado !== 'Obra terminada');
+  if (estado === 'vencidas') return lista.filter(esObraVencida);
+  if (estado !== 'todas') return lista.filter(o => o.estado === estado);
+  return lista;
+}
+
+function filtrarPorRegionYComercial(lista) {
   if (filtroRegion !== 'todas') lista = lista.filter(o => o.region === filtroRegion);
   if (filtroComercial !== 'todos') lista = lista.filter(o => o.comercial_id === filtroComercial);
+  return lista;
+}
+
+function renderListaObras() {
+  let lista = filtrarPorRegionYComercial(filtrarPorEstado([...obras], filtroEstado));
 
   lista.sort((a, b) => {
     if (a.solicitud_info !== b.solicitud_info) return b.solicitud_info ? 1 : -1;
@@ -2288,10 +2356,13 @@ function renderListaObras() {
   if (lista.length === 0) {
     cont.innerHTML = '';
     empty.style.display = 'block';
+    actualizarBotonEstado();
     return;
   }
   empty.style.display = 'none';
   cont.innerHTML = lista.map(cardObra).join('');
+  // Las tarjetas se acaban de rehacer: vuelve a aplicar el texto del buscador
+  aplicarBusquedaProyecto();
 }
 
 function cardObra(o) {
@@ -2332,20 +2403,96 @@ function cardObra(o) {
   </div>`;
 }
 
-function setFiltroEstado(estado, evt) {
+function setFiltroEstado(estado) {
   // Si pulsas el que ya está activo (y no es "todas"), vuelves a "todas"
-  if (filtroEstado === estado && estado !== 'todas') {
-    filtroEstado = 'todas';
-    document.querySelectorAll('.filters .filter-chip').forEach(c => c.classList.remove('active'));
-    const btnTodas = document.querySelector('.filters .filter-chip');
-    if (btnTodas) btnTodas.classList.add('active');
-  } else {
-    filtroEstado = estado;
-    document.querySelectorAll('.filters .filter-chip').forEach(c => c.classList.remove('active'));
-    evt.target.classList.add('active');
-  }
+  filtroEstado = (filtroEstado === estado && estado !== 'todas') ? 'todas' : estado;
+  document.querySelectorAll('.filters-estado .filter-chip').forEach(c => c.classList.toggle('active', c.dataset.estado === filtroEstado));
   renderListaObras();
 }
+
+// ---- Filtro de estado en móvil (panel inferior) ----
+const ESTADO_GRUPOS = [
+  ['EN CURSO', ['Contacto inicial', 'En desarrollo', 'Ofertado', 'En negociación']],
+  ['CERRADAS', ['Ganado', 'Perdido', 'Desestimada']],
+  ['HISTÓRICO', ['Obra terminada']]
+];
+// Mismo color que el texto de .estado-* (Obra terminada no tiene clase: gris)
+const ESTADO_PUNTO = {
+  todas: 'var(--navy)', vencidas: 'var(--red)',
+  'Contacto inicial': '#1e40af', 'En desarrollo': '#92400e', 'Ofertado': '#9a3412', 'En negociación': '#6b21a8',
+  'Ganado': '#065f46', 'Perdido': '#991b1b', 'Desestimada': '#78350f', 'Obra terminada': '#6b7280'
+};
+
+function nombreFiltroEstado(estado) {
+  return estado === 'todas' ? 'Todas activas' : estado === 'vencidas' ? '⚠ Vencidas' : estado;
+}
+
+// Base de los contadores: obras que el usuario ve (RLS) + región, comercial y buscador
+function obrasParaContadores() {
+  let lista = filtrarPorRegionYComercial([...obras]);
+  const inp = document.getElementById('searchProyecto');
+  const q = inp ? quitarAcentos(inp.value.trim()) : '';
+  if (q) {
+    // Mismo criterio que aplicarBusquedaProyecto(): el texto visible de la tarjeta
+    const tmp = document.createElement('div');
+    lista = lista.filter(o => { tmp.innerHTML = cardObra(o); return quitarAcentos(tmp.textContent || '').includes(q); });
+  }
+  return lista;
+}
+
+function actualizarBotonEstado() {
+  const btn = document.getElementById('btnFiltroEstado');
+  if (!btn) return;
+  const n = filtrarPorEstado(obrasParaContadores(), filtroEstado).length;
+  btn.innerHTML = `<span class="estado-punto" style="background:${ESTADO_PUNTO[filtroEstado] || 'var(--navy)'}"></span>
+    <span>Estado: ${escapeHtml(nombreFiltroEstado(filtroEstado))} (${n})</span><span class="flecha">▾</span>`;
+}
+
+function abrirFiltroEstado() {
+  const base = obrasParaContadores();
+  const opcion = estado => {
+    const n = filtrarPorEstado(base, estado).length;
+    return `<button type="button" class="estado-opcion ${estado === filtroEstado ? 'active' : ''} ${n ? '' : 'vacia'}" onclick="elegirFiltroEstado(${escapeHtml(JSON.stringify(estado))})">
+      <span class="estado-punto" style="background:${ESTADO_PUNTO[estado]}"></span>
+      <span>${escapeHtml(nombreFiltroEstado(estado))}</span><span class="contador">${n}</span></button>`;
+  };
+  document.getElementById('sheetEstadoBody').innerHTML = opcion('todas') + opcion('vencidas') +
+    ESTADO_GRUPOS.map(([grupo, estados]) => `<div class="estado-grupo">${grupo}</div>` + estados.map(opcion).join('')).join('');
+  abrirSheet('sheetEstado');
+}
+
+function elegirFiltroEstado(estado) {
+  filtroEstado = estado;
+  document.querySelectorAll('.filters-estado .filter-chip').forEach(c => c.classList.toggle('active', c.dataset.estado === filtroEstado));
+  renderListaObras();
+  cerrarSheet();
+}
+
+// Cerrar deslizando hacia abajo (desde el asa/cabecera, o desde la lista si está arriba del todo)
+(function () {
+  let y0 = null, dy = 0;
+  document.addEventListener('touchstart', e => {
+    const sheet = e.target.closest && e.target.closest('#sheetEstado.active');
+    if (!sheet) return;
+    const body = sheet.querySelector('.sheet-body');
+    if (body.contains(e.target) && body.scrollTop > 0) return;
+    y0 = e.touches[0].clientY; dy = 0;
+    sheet.style.transition = 'none';
+  }, { passive: true });
+  document.addEventListener('touchmove', e => {
+    if (y0 === null) return;
+    dy = Math.max(0, e.touches[0].clientY - y0);
+    document.getElementById('sheetEstado').style.transform = `translateY(${dy}px)`;
+  }, { passive: true });
+  document.addEventListener('touchend', () => {
+    if (y0 === null) return;
+    const sheet = document.getElementById('sheetEstado');
+    y0 = null;
+    sheet.style.transition = '';
+    sheet.style.transform = '';
+    if (dy > 80) cerrarSheet();
+  });
+})();
 
 function aplicarFiltros() {
   filtroRegion = document.getElementById('filtroRegion').value;
@@ -3896,6 +4043,7 @@ function aplicarBusquedaProyecto() {
   if (info) {
     info.textContent = q ? (visibles + ' obra(s) encontrada(s)') : '';
   }
+  actualizarBotonEstado();
 }
 
 function limpiarBusquedaProyecto() {
