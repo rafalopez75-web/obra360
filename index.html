@@ -325,35 +325,169 @@ input:focus, select:focus, textarea:focus { outline: none; }
 }
 .filters::-webkit-scrollbar { display: none; }
 .filter-chip {
+  /* Desplegables de región y comercial: mismo borde y tamaño que los chips de estado */
   flex-shrink: 0;
-  padding: 7px 14px;
+  display: inline-flex;
   background: var(--surface);
-  border: 1px solid var(--navy);
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 600;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+.filter-chip:hover { background: #f3f4f6; }
+/* Filtro de estado. Escritorio: embudo (5 pasos) + chips; móvil: botón + panel inferior */
+.embudo {
+  display: flex;
+  margin: 4px 0 10px;
+}
+.embudo-paso {
+  flex: 1 1 0;
+  min-width: 0;
+  margin-right: -9px;
+  padding: 9px 14px 9px 24px;
+  background: #f3f4f6;
+  color: #4b5563;
+  border: none;
+  text-align: center;
+  cursor: pointer;
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%, 12px 50%);
+  transition: background 0.15s;
+}
+.embudo-paso:first-child {
+  /* Mismo relleno total que el resto (38 px): con flex-basis 0 el relleno suma al ancho */
+  padding-left: 12px;
+  padding-right: 26px;
+  border-radius: 8px 0 0 8px;
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%);
+}
+.embudo-paso:last-child { margin-right: 0; }
+.embudo-paso:hover { background: #e5e7eb; }
+.embudo-paso .num {
+  display: block;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.15;
+  color: #111827;
+  font-variant-numeric: tabular-nums;
+}
+.embudo-paso .nombre {
+  display: block;
+  margin-top: 1px;
+  font-size: 13px;
   white-space: nowrap;
-  color: var(--navy);
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.filter-chip.active {
-  background: var(--navy);
-  color: var(--gold);
+.embudo-paso.active { background: #fef3c7; color: #92400e; }
+.embudo-paso.active .num { color: #92400e; }
+.estado-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 12px;
 }
+.estado-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 11px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 12.5px;
+  color: #374151;
+  cursor: pointer;
+}
+.estado-chip b { color: #111827; font-variant-numeric: tabular-nums; }
+.estado-chip:hover { background: #f3f4f6; }
+.estado-chip.vencidas { border-color: #fca5a5; color: #b91c1c; }
+.estado-chip.vencidas b { color: #b91c1c; }
+.estado-chip.active { background: #fef3c7; border-color: #d97706; color: #92400e; }
+.estado-chip.active b { color: #92400e; }
+.estado-chip.vencidas.active { background: #fee2e2; border-color: #dc2626; color: #991b1b; }
+.filtro-estado-btn {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  margin: 4px 0 12px;
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 15px;
+  color: #374151;
+  text-align: left;
+}
+.filtro-estado-btn .actual { font-weight: 600; color: var(--navy); }
+.filtro-estado-btn .flecha { margin-left: auto; font-size: 12px; color: #6b7280; }
+.filtro-estado-btn.vencidas .actual { color: #b91c1c; }
+@media (max-width: 767.98px) {
+  .filtro-escritorio { display: none; }
+  .filtro-estado-btn { display: flex; }
+}
+.estado-punto {
+  flex-shrink: 0;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.contador-badge {
+  min-width: 28px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: #f3f4f6;
+  color: #111827;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.estado-grupo {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  color: var(--text-3);
+  margin: 16px 4px 6px;
+}
+.estado-opcion {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 12px;
+  background: none;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  color: #1f2937;
+  text-align: left;
+}
+.estado-opcion .contador-badge { margin-left: auto; }
+.estado-opcion.active { background: #fef3c7; color: #92400e; font-weight: 600; }
+.estado-opcion.active .contador-badge { background: #fde68a; color: #92400e; }
+.estado-opcion.vencidas { color: #b91c1c; }
+.estado-opcion.vencidas .contador-badge, .filtro-estado-btn.vencidas .contador-badge { background: #fee2e2; color: #b91c1c; }
+.estado-opcion.vacia .contador-badge { color: var(--text-3); font-weight: 600; }
+#sheetEstado .sheet-body { padding: 4px 12px 16px; }
 .filter-chip select {
+  max-width: 100%;
+  padding: 4px 28px 4px 12px;
   background: transparent;
   border: none;
-  font-size: 12px;
-  font-weight: 600;
-  color: inherit;
-  padding-right: 18px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  color: #374151;
   appearance: none;
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%230a1437' stroke-width='3'><polyline points='6 9 12 15 18 9'></polyline></svg>");
+  -webkit-appearance: none;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='3'><polyline points='6 9 12 15 18 9'></polyline></svg>");
   background-repeat: no-repeat;
-  background-position: right center;
+  background-position: right 11px center;
+}
+@media (max-width: 767.98px) {
+  /* En móvil los dos se reparten el ancho: sin fila desplazable */
+  .filter-chip { flex: 1 1 0; min-width: 0; }
+  .filter-chip select { width: 100%; }
 }
 .view-toggle {
   display: inline-flex;
@@ -1436,18 +1570,8 @@ textarea.form-input { resize: vertical; min-height: 70px; font-family: inherit; 
         <div class="page-title">Obras</div>
         <div class="page-subtitle" id="obrasSubtitle">Cargando...</div>
       </div>
-      <div class="filters">
-        <button class="filter-chip active" onclick="setFiltroEstado('todas', event)">Todas</button>
-        <button class="filter-chip" onclick="setFiltroEstado('Contacto inicial', event)">Contacto</button>
-        <button class="filter-chip" onclick="setFiltroEstado('En desarrollo', event)">Desarrollo</button>
-        <button class="filter-chip" onclick="setFiltroEstado('Ofertado', event)">Ofertado</button>
-        <button class="filter-chip" onclick="setFiltroEstado('En negociación', event)">Negociación</button>
-        <button class="filter-chip" onclick="setFiltroEstado('Ganado', event)">Ganado</button>
-        <button class="filter-chip" onclick="setFiltroEstado('Perdido', event)">Perdido</button>
-        <button class="filter-chip" onclick="setFiltroEstado('Obra terminada', event)">🏁 Histórico</button>
-        <button class="filter-chip" onclick="setFiltroEstado('Desestimada', event)">Desestimada</button>
-        <button class="filter-chip" onclick="setFiltroEstado('vencidas', event)" style="border-color:var(--red);color:var(--red);">⚠ Vencidas</button>
-      </div>
+      <button type="button" class="filtro-estado-btn" id="btnFiltroEstado" onclick="abrirFiltroEstado()"><span class="actual">Estado: Todas activas</span><span class="flecha">▾</span></button>
+      <div class="filtro-escritorio" id="filtroEstadoEscritorio"></div>
       <div class="filters">
         <div class="filter-chip">
           <select id="filtroRegion" onchange="aplicarFiltros()">
@@ -1789,6 +1913,16 @@ textarea.form-input { resize: vertical; min-height: 70px; font-family: inherit; 
 </div>
 
 <!-- SHEET NOTIFICACIONES -->
+<!-- FILTRO DE ESTADO (móvil) -->
+<div class="sheet" id="sheetEstado">
+  <div class="sheet-handle"></div>
+  <div class="sheet-header">
+    <div class="sheet-title">Filtrar por estado</div>
+    <button class="sheet-close" onclick="cerrarSheet()">&times;</button>
+  </div>
+  <div class="sheet-body" id="sheetEstadoBody"></div>
+</div>
+
 <div class="sheet" id="sheetNotif">
   <div class="sheet-handle"></div>
   <div class="sheet-header">
@@ -2179,7 +2313,6 @@ function llenarTipos() {
 // ============ CARGAR DATOS ============
 async function cargarDatos() {
   await Promise.all([cargarProfiles(), cargarObras()]);
-  llenarSelectComerciales();
   llenarSelectKams();
   render();
 }
@@ -2232,24 +2365,22 @@ async function cargarArchivosObra(obraId) {
   return data || [];
 }
 
+// Filtro del listado: quienes son comercial de al menos una obra que el usuario ve.
+// `obras` ya viene filtrado por la RLS (sus regiones; KAM y director, todas).
+// Activos por nombre; los dados de baja al final con "(baja)".
 function llenarSelectComerciales() {
-  // El select de comercial en el formulario ya no existe (cada usuario crea con su propio nombre)
-  // Solo rellenamos el filtro del listado
-
-  // El filtro del listado muestra todos los usuarios visibles para el rol actual
   const selFil = document.getElementById('filtroComercial');
-  selFil.innerHTML = '<option value="todos">Todos</option>';
-  const regsActual = regionesPermitidas(perfilUsuario);
-  const usuariosFiltro = profiles.filter(p => {
-    // Acceso global (director, kam o acceso_global): todos los usuarios
-    if (tieneAccesoGlobal(perfilUsuario)) return true;
-    // Coordinador: además, los usuarios con acceso global (tienen regiones vacías)
-    if (perfilUsuario.rol === 'coordinador' && tieneAccesoGlobal(p)) return true;
-    // Resto: usuarios de sus regiones
-    if (!p.regiones) return false;
-    return p.regiones.some(r => regsActual.includes(r));
-  });
-  usuariosFiltro.forEach(c => selFil.innerHTML += `<option value="${c.id}">${c.nombre}</option>`);
+  const ids = new Set(obras.map(o => o.comercial_id).filter(Boolean));
+  const porNombre = (a, b) => a.nombre.localeCompare(b.nombre, 'es');
+  const comerciales = profiles.filter(p => ids.has(p.id));
+  const activos = comerciales.filter(p => p.activo !== false).sort(porNombre);
+  const bajas = comerciales.filter(p => p.activo === false).sort(porNombre);
+  selFil.innerHTML = '<option value="todos">Todos los comerciales</option>' +
+    activos.map(c => `<option value="${c.id}">${escapeHtml(c.nombre)}</option>`).join('') +
+    bajas.map(c => `<option value="${c.id}">${escapeHtml(c.nombre)} (baja)</option>`).join('');
+  // Si el comercial elegido ya no tiene obras visibles, se vuelve a "Todos los comerciales"
+  if (!comerciales.some(c => c.id === filtroComercial)) filtroComercial = 'todos';
+  selFil.value = filtroComercial;
 }
 
 function llenarSelectKams() {
@@ -2261,20 +2392,27 @@ function llenarSelectKams() {
 
 // ============ RENDER ============
 function render() {
+  llenarSelectComerciales();
   renderListaObras();
   actualizarNotificaciones();
 }
 
-function renderListaObras() {
-  let lista = [...obras];
-  // Excluir obras terminadas de la vista normal; solo se ven cuando se filtra por Histórico
-  if (filtroEstado !== 'Obra terminada') {
-    lista = lista.filter(o => o.estado !== 'Obra terminada');
-  }
-  if (filtroEstado === 'vencidas') lista = lista.filter(esObraVencida);
-  else if (filtroEstado !== 'todas') lista = lista.filter(o => o.estado === filtroEstado);
+// Obras terminadas fuera de la vista normal; solo se ven cuando se filtra por Histórico
+function filtrarPorEstado(lista, estado) {
+  if (estado !== 'Obra terminada') lista = lista.filter(o => o.estado !== 'Obra terminada');
+  if (estado === 'vencidas') return lista.filter(esObraVencida);
+  if (estado !== 'todas') return lista.filter(o => o.estado === estado);
+  return lista;
+}
+
+function filtrarPorRegionYComercial(lista) {
   if (filtroRegion !== 'todas') lista = lista.filter(o => o.region === filtroRegion);
   if (filtroComercial !== 'todos') lista = lista.filter(o => o.comercial_id === filtroComercial);
+  return lista;
+}
+
+function renderListaObras() {
+  let lista = filtrarPorRegionYComercial(filtrarPorEstado([...obras], filtroEstado));
 
   lista.sort((a, b) => {
     if (a.solicitud_info !== b.solicitud_info) return b.solicitud_info ? 1 : -1;
@@ -2289,10 +2427,13 @@ function renderListaObras() {
   if (lista.length === 0) {
     cont.innerHTML = '';
     empty.style.display = 'block';
+    renderFiltroEstado();
     return;
   }
   empty.style.display = 'none';
   cont.innerHTML = lista.map(cardObra).join('');
+  // Las tarjetas se acaban de rehacer: vuelve a aplicar el texto del buscador
+  aplicarBusquedaProyecto();
 }
 
 function cardObra(o) {
@@ -2333,20 +2474,112 @@ function cardObra(o) {
   </div>`;
 }
 
-function setFiltroEstado(estado, evt) {
+function setFiltroEstado(estado) {
   // Si pulsas el que ya está activo (y no es "todas"), vuelves a "todas"
-  if (filtroEstado === estado && estado !== 'todas') {
-    filtroEstado = 'todas';
-    document.querySelectorAll('.filters .filter-chip').forEach(c => c.classList.remove('active'));
-    const btnTodas = document.querySelector('.filters .filter-chip');
-    if (btnTodas) btnTodas.classList.add('active');
-  } else {
-    filtroEstado = estado;
-    document.querySelectorAll('.filters .filter-chip').forEach(c => c.classList.remove('active'));
-    evt.target.classList.add('active');
-  }
+  filtroEstado = (filtroEstado === estado && estado !== 'todas') ? 'todas' : estado;
   renderListaObras();
 }
+
+// Escritorio: embudo con las obras en curso y, debajo, chips con vencidas y cerradas
+const EMBUDO_PASOS = [['todas', 'Todas activas'], ['Contacto inicial', 'Contacto inicial'], ['En desarrollo', 'Desarrollo'],
+  ['Ofertado', 'Ofertado'], ['En negociación', 'Negociación']];
+const EMBUDO_CHIPS = [['vencidas', '⚠ Vencidas'], ['Ganado', 'Ganado'], ['Perdido', 'Perdido'],
+  ['Desestimada', 'Desestimada'], ['Obra terminada', 'Histórico']];
+
+// ---- Filtro de estado en móvil (panel inferior) ----
+const ESTADO_GRUPOS = [
+  ['EN CURSO', ['Contacto inicial', 'En desarrollo', 'Ofertado', 'En negociación']],
+  ['CERRADAS', ['Ganado', 'Perdido', 'Desestimada']],
+  ['HISTÓRICO', ['Obra terminada']]
+];
+// Mismo color que el texto de .estado-* (Obra terminada no tiene clase: gris)
+const ESTADO_PUNTO = {
+  todas: 'var(--navy)', vencidas: 'var(--red)',
+  'Contacto inicial': '#1e40af', 'En desarrollo': '#92400e', 'Ofertado': '#9a3412', 'En negociación': '#6b21a8',
+  'Ganado': '#065f46', 'Perdido': '#991b1b', 'Desestimada': '#78350f', 'Obra terminada': '#6b7280'
+};
+
+function nombreFiltroEstado(estado) {
+  return estado === 'todas' ? 'Todas activas' : estado === 'vencidas' ? '⚠ Vencidas' : estado;
+}
+
+// Base de los contadores: obras que el usuario ve (RLS) + región, comercial y buscador
+function obrasParaContadores() {
+  let lista = filtrarPorRegionYComercial([...obras]);
+  const inp = document.getElementById('searchProyecto');
+  const q = inp ? quitarAcentos(inp.value.trim()) : '';
+  if (q) {
+    // Mismo criterio que aplicarBusquedaProyecto(): el texto visible de la tarjeta
+    const tmp = document.createElement('div');
+    lista = lista.filter(o => { tmp.innerHTML = cardObra(o); return quitarAcentos(tmp.textContent || '').includes(q); });
+  }
+  return lista;
+}
+
+// Contadores del embudo, de los chips y del botón de móvil; se rehace con cada cambio de lista o búsqueda
+function renderFiltroEstado() {
+  const btn = document.getElementById('btnFiltroEstado');
+  const esc = document.getElementById('filtroEstadoEscritorio');
+  if (!btn || !esc) return;
+  const base = obrasParaContadores();
+  const n = estado => filtrarPorEstado(base, estado).length;
+  const arg = estado => escapeHtml(JSON.stringify(estado));
+  esc.innerHTML = `<div class="embudo">${EMBUDO_PASOS.map(([estado, nombre]) =>
+      `<button type="button" class="embudo-paso ${estado === filtroEstado ? 'active' : ''}" data-estado="${escapeHtml(estado)}" onclick="setFiltroEstado(${arg(estado)})">
+        <span class="num">${n(estado)}</span><span class="nombre">${nombre}</span></button>`).join('')}</div>
+    <div class="estado-chips">${EMBUDO_CHIPS.map(([estado, nombre]) =>
+      `<button type="button" class="estado-chip ${estado === 'vencidas' ? 'vencidas' : ''} ${estado === filtroEstado ? 'active' : ''}" data-estado="${escapeHtml(estado)}" onclick="setFiltroEstado(${arg(estado)})">
+        ${nombre} <b>${n(estado)}</b></button>`).join('')}</div>`;
+  btn.classList.toggle('vencidas', filtroEstado === 'vencidas');
+  btn.innerHTML = `<span class="estado-punto" style="background:${ESTADO_PUNTO[filtroEstado] || 'var(--navy)'}"></span>
+    <span>Estado: <span class="actual">${escapeHtml(nombreFiltroEstado(filtroEstado))}</span></span>
+    <span class="contador-badge">${n(filtroEstado)}</span><span class="flecha">▾</span>`;
+}
+
+function abrirFiltroEstado() {
+  const base = obrasParaContadores();
+  const opcion = estado => {
+    const n = filtrarPorEstado(base, estado).length;
+    return `<button type="button" class="estado-opcion ${estado === 'vencidas' ? 'vencidas' : ''} ${estado === filtroEstado ? 'active' : ''} ${n ? '' : 'vacia'}" onclick="elegirFiltroEstado(${escapeHtml(JSON.stringify(estado))})">
+      <span class="estado-punto" style="background:${ESTADO_PUNTO[estado]}"></span>
+      <span>${escapeHtml(nombreFiltroEstado(estado))}</span><span class="contador-badge">${n}</span></button>`;
+  };
+  document.getElementById('sheetEstadoBody').innerHTML = opcion('todas') + opcion('vencidas') +
+    ESTADO_GRUPOS.map(([grupo, estados]) => `<div class="estado-grupo">${grupo}</div>` + estados.map(opcion).join('')).join('');
+  abrirSheet('sheetEstado');
+}
+
+function elegirFiltroEstado(estado) {
+  filtroEstado = estado;
+  renderListaObras();
+  cerrarSheet();
+}
+
+// Cerrar deslizando hacia abajo (desde el asa/cabecera, o desde la lista si está arriba del todo)
+(function () {
+  let y0 = null, dy = 0;
+  document.addEventListener('touchstart', e => {
+    const sheet = e.target.closest && e.target.closest('#sheetEstado.active');
+    if (!sheet) return;
+    const body = sheet.querySelector('.sheet-body');
+    if (body.contains(e.target) && body.scrollTop > 0) return;
+    y0 = e.touches[0].clientY; dy = 0;
+    sheet.style.transition = 'none';
+  }, { passive: true });
+  document.addEventListener('touchmove', e => {
+    if (y0 === null) return;
+    dy = Math.max(0, e.touches[0].clientY - y0);
+    document.getElementById('sheetEstado').style.transform = `translateY(${dy}px)`;
+  }, { passive: true });
+  document.addEventListener('touchend', () => {
+    if (y0 === null) return;
+    const sheet = document.getElementById('sheetEstado');
+    y0 = null;
+    sheet.style.transition = '';
+    sheet.style.transform = '';
+    if (dy > 80) cerrarSheet();
+  });
+})();
 
 function aplicarFiltros() {
   filtroRegion = document.getElementById('filtroRegion').value;
@@ -4218,6 +4451,7 @@ function aplicarBusquedaProyecto() {
   if (info) {
     info.textContent = q ? (visibles + ' obra(s) encontrada(s)') : '';
   }
+  renderFiltroEstado();
 }
 
 function limpiarBusquedaProyecto() {
