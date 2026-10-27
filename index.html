@@ -1986,7 +1986,8 @@ function getTipo(id) {
 }
 function esObraVencida(obra) {
   if (!obra.fecha_seguimiento) return false;
-  if (['Ganado', 'Perdido', 'Desestimada'].includes(obra.estado)) return false;
+  // Estados cerrados: ya no necesitan seguimiento
+  if (['Ganado', 'Perdido', 'Desestimada', 'Obra terminada'].includes(obra.estado)) return false;
   const hoy = new Date(); hoy.setHours(0,0,0,0);
   return new Date(obra.fecha_seguimiento) < hoy;
 }
