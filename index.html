@@ -2240,8 +2240,11 @@ function llenarSelectComerciales() {
   selFil.innerHTML = '<option value="todos">Todos</option>';
   const regsActual = regionesPermitidas(perfilUsuario);
   const usuariosFiltro = profiles.filter(p => {
-    if (perfilUsuario.rol === 'director') return true;
-    // KAM y coordinador: usuarios de sus regiones
+    // Acceso global (director, kam o acceso_global): todos los usuarios
+    if (tieneAccesoGlobal(perfilUsuario)) return true;
+    // Coordinador: además, los usuarios con acceso global (tienen regiones vacías)
+    if (perfilUsuario.rol === 'coordinador' && tieneAccesoGlobal(p)) return true;
+    // Resto: usuarios de sus regiones
     if (!p.regiones) return false;
     return p.regiones.some(r => regsActual.includes(r));
   });
