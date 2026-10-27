@@ -3752,8 +3752,15 @@ async function pdfCargarFotos(archivos) {
   return fotos;
 }
 
+// es-ES no pone separador de miles con 4 cifras (4650,00): se agrupa a mano
 function pdfEuros(n) {
-  return Number(n).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+  const [ent, dec] = Math.abs(Number(n)).toFixed(2).split('.');
+  return (Number(n) < 0 ? '-' : '') + ent.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ',' + dec + ' €';
+}
+
+// Roboto (la fuente de pdfmake) no tiene flechas: el historial usa "→"
+function pdfTexto(v) {
+  return String(v == null ? '' : v).replace(/→/g, '»');
 }
 
 function pdfSeccion(titulo) {
@@ -3840,9 +3847,9 @@ function pdfDefinicion(obra, historial, archivos, fotos, logo) {
 
   // 4. Seguimiento y 5. caja económica, lado a lado
   const celdaEco = (k, v) => ({ stack: [{ text: k.toUpperCase(), fontSize: 7, color: PDF_GRIS, bold: true },
-    { text: v, fontSize: 12, bold: true, color: PDF_NAVY, margin: [0, 2, 0, 0] }], margin: [6, 5, 6, 5] });
+    { text: v, fontSize: 11, bold: true, color: PDF_NAVY, margin: [0, 2, 0, 0] }], margin: [6, 5, 6, 5] });
   content.push({ columns: [
-    { width: 200, stack: [pdfSeccion('Seguimiento'), pdfTablaCampos([
+    { width: 180, stack: [pdfSeccion('Seguimiento'), pdfTablaCampos([
       ['Fecha visita', formatDate(obra.fecha_visita)],
       ['Próximo seguim.', vencida
         ? { text: [formatDate(obra.fecha_seguimiento) + '  ', { text: 'VENCIDA', bold: true, color: '#b91c1c' }] }
@@ -3850,7 +3857,7 @@ function pdfDefinicion(obra, historial, archivos, fotos, logo) {
       ['Últ. modificación', obra.modificado_por || '']
     ])] },
     { stack: [pdfSeccion('Económico'), {
-      table: { widths: ['*', '*', '*', '*'], body: [[
+      table: { widths: [48, '*', 48, '*'], body: [[
         celdaEco('Ofertado', obra.ofertado || '—'),
         celdaEco('Cantidad', cantidad !== null ? pdfEuros(cantidad) : '—'),
         celdaEco('Margen', margen !== null ? margen.toLocaleString('es-ES') + ' %' : '—'),
@@ -3863,7 +3870,7 @@ function pdfDefinicion(obra, historial, archivos, fotos, logo) {
   ], columnGap: 24, margin: [0, 0, 0, 14] });
 
   // 6. Descripción y notas
-  const recuadro = texto => ({ table: { widths: ['*'], body: [[{ text: texto, fontSize: 9, margin: [6, 5, 6, 5] }]] },
+  const recuadro = texto => ({ table: { widths: ['*'], body: [[{ text: pdfTexto(texto), fontSize: 9, margin: [6, 5, 6, 5] }]] },
     layout: { hLineWidth: () => 0.75, vLineWidth: () => 0.75, hLineColor: () => PDF_LINEA, vLineColor: () => PDF_LINEA },
     margin: [0, 0, 0, 14] });
   if (obra.descripcion) content.push(pdfSeccion('Descripción'), recuadro(obra.descripcion));
@@ -3873,17 +3880,20 @@ function pdfDefinicion(obra, historial, archivos, fotos, logo) {
   const hist = [...historial].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
   content.push(pdfSeccion(`Historial (${hist.length})`));
   content.push(hist.length ? { ...pdfTablaListado(['Fecha', 'Tipo', 'Descripción', 'Usuario'],
-    hist.map(h => [formatFechaHora(h.created_at), tipoHistorialLabel(h.tipo), h.descripcion || '', h.usuario_nombre || 'Sistema']),
-    [62, 62, '*', 80]), margin: [0, 0, 0, 14] } : { text: 'Sin movimientos', style: 'vacio' });
+    hist.map(h => [formatFechaHora(h.created_at), tipoHistorialLabel(h.tipo), pdfTexto(h.descripcion), h.usuario_nombre || 'Sistema']),
+    [70, 66, '*', 80]), margin: [0, 0, 0, 14] } : { text: 'Sin movimientos', style: 'vacio' });
 
   // 8. Fotos, 2 por fila; con más de 4 empiezan en página aparte
   if (fotos.length) {
-    content.push({ ...pdfSeccion(`Fotos (${fotos.length})`), pageBreak: fotos.length > 4 ? 'before' : undefined });
     for (let i = 0; i < fotos.length; i += 2) {
-      content.push({ columns: fotos.slice(i, i + 2).map(f => ({ stack: [
+      const fila = { columns: fotos.slice(i, i + 2).map(f => ({ stack: [
         { image: f.imagen, fit: [243, 182], alignment: 'center' },
         { text: `${formatFechaHora(f.archivo.created_at)} · ${f.archivo.nombre || ''}`, fontSize: 7, color: PDF_GRIS, margin: [0, 3, 0, 0], alignment: 'center' }
-      ] })).concat(i + 1 < fotos.length ? [] : [{ text: '' }]), columnGap: 24, unbreakable: true, margin: [0, 0, 0, 12] });
+      ] })).concat(i + 1 < fotos.length ? [] : [{ text: '' }]), columnGap: 24, margin: [0, 0, 0, 12] };
+      // El título va en el mismo bloque que la primera fila para que no quede solo al pie de página
+      content.push(i === 0
+        ? { stack: [pdfSeccion(`Fotos (${fotos.length})`), fila], unbreakable: true, pageBreak: fotos.length > 4 ? 'before' : undefined }
+        : { stack: [fila], unbreakable: true });
     }
   }
 
@@ -3894,7 +3904,7 @@ function pdfDefinicion(obra, historial, archivos, fotos, logo) {
       const p = profiles.find(x => x.id === a.subido_por);
       return [a.nombre || '', a.tipo || '', a.tamano ? Math.round(Number(a.tamano) / 1024).toLocaleString('es-ES') + ' KB' : '',
         p ? p.nombre : '', formatFechaHora(a.created_at)];
-    }), ['*', 62, 50, 80, 62]) : { text: 'Sin archivos', style: 'vacio' });
+    }), ['*', 58, 50, 80, 70]) : { text: 'Sin archivos', style: 'vacio' });
 
   return {
     pageSize: 'A4',
