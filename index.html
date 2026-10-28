@@ -2194,11 +2194,12 @@ function formatFechaHora(iso) {
 function tipoHistorialLabel(tipo) {
   return ({creacion:'Obra creada',estado:'Cambio de estado',visita:'Visita',oferta:'Oferta',archivo:'Archivo',info:'Información',edicion:'Edición',cierre:'Obra cerrada',reapertura:'Obra reabierta'})[tipo] || tipo;
 }
-function toast(msg, tipo='success') {
+function toast(msg, tipo='success', ms=2800) {
   const t = document.getElementById('toast');
   t.textContent = msg;
   t.className = 'toast show ' + tipo;
-  setTimeout(() => t.classList.remove('show'), 2800);
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => t.classList.remove('show'), ms);
 }
 function escapeHtml(str) {
   if (str === null || str === undefined) return '';
@@ -2677,10 +2678,11 @@ function switchView(view) {
 }
 
 function renderDashboard() {
-  // Resumen de obras vivas: las archivadas no cuentan
+  // Métricas históricas (total, ganadas, por estado, por región, competidores): todas las obras, también
+  // las archivadas. "En proceso" y "Vencidas" son trabajo pendiente: solo obras vivas.
   const vivas = obrasVivas();
-  const total = vivas.length;
-  const ganadas = vivas.filter(o => o.estado === 'Ganado').length;
+  const total = obras.length;
+  const ganadas = obras.filter(o => o.estado === 'Ganado').length;
   const enProceso = vivas.filter(o => !['Ganado','Perdido','Desestimada'].includes(o.estado)).length;
   const vencidas = vivas.filter(esObraVencida).length;
 
@@ -2692,19 +2694,19 @@ function renderDashboard() {
   `;
 
   const porEstado = {};
-  vivas.forEach(o => porEstado[o.estado] = (porEstado[o.estado]||0)+1);
+  obras.forEach(o => porEstado[o.estado] = (porEstado[o.estado]||0)+1);
   document.getElementById('dashboardEstados').innerHTML = Object.entries(porEstado).map(([k,v]) =>
     `<div class="dashboard-row"><span class="estado-pill estado-${k.toLowerCase().replace(/\s/g,'')}">${k}</span><div class="dashboard-row-value">${v}</div></div>`
   ).join('') || '<div style="color:var(--text-2);font-size:12px;">Sin datos</div>';
 
   const porRegion = {};
-  vivas.forEach(o => porRegion[o.region || '—'] = (porRegion[o.region || '—']||0)+1);
+  obras.forEach(o => porRegion[o.region || '—'] = (porRegion[o.region || '—']||0)+1);
   document.getElementById('dashboardRegiones').innerHTML = Object.entries(porRegion).map(([k,v]) =>
     `<div class="dashboard-row"><div class="dashboard-row-label">${escapeHtml(k)}</div><div class="dashboard-row-value">${v}</div></div>`
   ).join('') || '<div style="color:var(--text-2);font-size:12px;">Sin datos</div>';
 
   const porComp = {};
-  vivas.filter(o => (o.estado === 'Perdido' || o.estado === 'Desestimada') && o.perdida_contra).forEach(o => {
+  obras.filter(o => (o.estado === 'Perdido' || o.estado === 'Desestimada') && o.perdida_contra).forEach(o => {
     porComp[o.perdida_contra] = (porComp[o.perdida_contra]||0)+1;
   });
   const compSorted = Object.entries(porComp).sort((a,b) => b[1]-a[1]);
@@ -3762,6 +3764,7 @@ async function importarExcel(e) {
   const ESTADOS_VALIDOS = ['Contacto inicial','En desarrollo','Ofertado','En negociación','Ganado','Perdido','Desestimada','Obra terminada'];
   let creadas = 0, actualizadas = 0, errores = 0;
   const filasConError = [];
+  const refsArchivadas = []; // filas que actualizan una obra archivada: se actualiza y sigue archivada
 
   for (let i = 1; i < lineas.length; i++) {
     const cols = parseFila(lineas[i]);
@@ -3825,7 +3828,11 @@ async function importarExcel(e) {
           filasConError.push(`fila ${filaNum} (error al actualizar)`);
           errores++;
         }
-        else { await addHistorial(obraExistente.id, 'edicion', `Obra actualizada por importación CSV`); actualizadas++; }
+        else {
+          await addHistorial(obraExistente.id, 'edicion', `Obra actualizada por importación CSV`);
+          actualizadas++;
+          if (estaArchivada(obraExistente)) refsArchivadas.push(refCSV);
+        }
       } else {
         data.creado_por = perfilUsuario.id;
         data.solicitud_info = false;
@@ -3851,8 +3858,11 @@ async function importarExcel(e) {
   if (creadas > 0) msg += `${creadas} creadas`;
   if (actualizadas > 0) msg += `${msg ? ', ' : ''}${actualizadas} actualizadas`;
   if (errores > 0) msg += `${msg ? ', ' : ''}${errores} con error (${filasConError.join(', ')})`;
+  if (refsArchivadas.length > 0) {
+    msg += `${msg ? '. ' : ''}Aviso: ${refsArchivadas.map(r => 'ref ' + r).join(', ')} ${refsArchivadas.length === 1 ? 'está archivada' : 'están archivadas'} (actualizada${refsArchivadas.length === 1 ? '' : 's'}, sigue${refsArchivadas.length === 1 ? '' : 'n'} en Obras archivadas)`;
+  }
   if (filasConError.length > 0) console.error('[Import] Filas con error:', filasConError.join(' · '));
-  toast(msg || 'Sin cambios', creadas + actualizadas > 0 ? 'ok' : 'error');
+  toast(msg || 'Sin cambios', creadas + actualizadas > 0 ? 'ok' : 'error', refsArchivadas.length || errores ? 8000 : 2800);
 }
 
 const EXPORT_HEADERS = ['Nº Ref','Proyecto','Descripción','Tipo','Comercial','KAM activo','KAM','Ingeniería','Constructora','Instalador','Promotor','Dirección','Población','Región','Fecha visita','Fecha seguimiento','Vencida','Estado','Ofertado','Cantidad','Margen','Beneficio','Perdida contra','Notas'];

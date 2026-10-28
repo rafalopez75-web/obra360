@@ -25,8 +25,8 @@ PASS buscar "Colegio" en vivas: 0
 PASS con la búsqueda, todos los contadores a 0 {"todas":0,"Contacto inicial":0,"En desarrollo":0,"Ofertado":0,"En negociación":0,"vencidas":0,"Ganado":0,"Perdido":0,"Desestimada":0,"Obra terminada":0}
 PASS filtro Ganado: no sale la archivada
 PASS buscador de proyectos similares (formulario): no la ofrece
-PASS dashboard sin la archivada: Total=6 En proceso=5 Ganadas=0 Vencidas=1
-PASS dashboard "Por estado" sin la archivada
+PASS dashboard: la archivada (Ganado) sigue en Total y Ganadas: Total=7 En proceso=5 Ganadas=1 Vencidas=1
+PASS dashboard "Por estado" (histórico) la incluye
 PASS recarga de página (sesión guardada)
 PASS tras recargar sigue archivada: vivas 5, Archivadas 1
 PASS vista "Obras archivadas"
@@ -50,6 +50,20 @@ PASS vuelve a vivas: 6, Ganado 1, Archivadas 0
 PASS tras recargar sigue viva
 PASS BD: historial creacion,estado,cierre,reapertura
 PASS BD: viva, sin autor de cierre, estado Ganado
+
+== Dashboard con varias archivadas + importación CSV ==
+PASS archivar 3 obras por la API
+PASS recarga
+PASS archivadas fuera de "En proceso" y "Vencidas", dentro de Total y Ganadas: Total=7 En proceso=3 Ganadas=1 Vencidas=0
+PASS Por estado cuenta las 7 (histórico): Contactoinicial1|Endesarrollo1|Ennegociación1|Ganado1|Obraterminada1|Ofertado1|Perdido1
+PASS competidores incluye la perdida archivada: CCompetidor X1
+PASS Por región histórico (Madrid 2, ambas archivadas)
+PASS listado de vivas: 3 (sin las archivadas), Archivadas 3
+PASS resumen de importación avisa: 2 actualizadas. Aviso: ref 103 está archivada (actualizada, sigue en Obras archivadas)
+PASS BD: la importación no reabre la archivada
+PASS reabrir las 3 por la API
+PASS BD: 0 archivadas al terminar el bloque
+PASS recarga
 
 == iPhone 390x844 · Comercial Uno ==
 PASS login comercial
@@ -85,5 +99,5 @@ PASS sin peticiones fallidas inesperadas (solo el 400 provocado sin migración)
 errores consola: ["Error en cierre/reapertura: Object"]
 PASS sin errores de JavaScript
 
-RESULTADO: 75 PASS / 0 FAIL
+RESULTADO: 87 PASS / 0 FAIL
 EXIT=0

@@ -113,8 +113,8 @@ await ev(`buscarProyectoSimilar('Colegio')`);
 ok(await ev(`document.getElementById('proyectoSugerencias').style.display === 'none' || !document.getElementById('proyectoSugerencias').textContent.includes('Colegio Mar')`), 'buscador de proyectos similares (formulario): no la ofrece');
 await ev(`switchView('dashboard')`); await sleep(300);
 const s1 = await ev(stats);
-ok(/Total=6/.test(s1) && /Ganadas=0/.test(s1), 'dashboard sin la archivada: ' + s1);
-ok(!(await ev(`document.getElementById('dashboardEstados').textContent`)).includes('Ganado'), 'dashboard "Por estado" sin la archivada');
+ok(s1 === 'Total=7 En proceso=5 Ganadas=1 Vencidas=1', 'dashboard: la archivada (Ganado) sigue en Total y Ganadas: ' + s1);
+ok((await ev(`document.getElementById('dashboardEstados').textContent`)).includes('Ganado'), 'dashboard "Por estado" (histórico) la incluye');
 await ev(`switchView('obras')`);
 
 // Recargar: persiste
@@ -162,6 +162,32 @@ ok(v.length === 6 && v.includes('Colegio Mar') && c['Ganado'] === 1 && await ev(
 ok(await recargar(8899) && (await ev(visibles)).includes('Colegio Mar'), 'tras recargar sigue viva');
 ok(db('e2e', "select string_agg(tipo, ',' order by id) from historial where obra_id = 4") === 'creacion,estado,cierre,reapertura', 'BD: historial creacion,estado,cierre,reapertura');
 ok(db('e2e', "select coalesce(fecha_cierre::text,'null') || '|' || coalesce(cerrada_por::text,'null') || '|' || estado from obras where id = 4") === 'null|null|Ganado', 'BD: viva, sin autor de cierre, estado Ganado');
+
+console.log('\n== Dashboard con varias archivadas + importación CSV ==');
+// Se archivan por la API de la app: Hospital Norte (vencida, Contacto inicial), Centro Salud Este (Perdido
+// contra Competidor X) y Nave Logística Sur (Ofertado)
+const archivar = async (ids, fecha) => ev(`Promise.all(${JSON.stringify(ids)}.map(id => sb.from('obras').update({ fecha_cierre: ${fecha} }).eq('id', id).select('id'))).then(r => r.map(x => (x.data || []).length).join(','))`);
+ok(await archivar([1, 6, 3], 'new Date().toISOString()') === '1,1,1', 'archivar 3 obras por la API');
+ok(await recargar(8899), 'recarga');
+await ev(`switchView('dashboard')`); await sleep(300);
+const s2 = await ev(stats);
+ok(s2 === 'Total=7 En proceso=3 Ganadas=1 Vencidas=0', 'archivadas fuera de "En proceso" y "Vencidas", dentro de Total y Ganadas: ' + s2);
+const est2 = await ev(`[...document.querySelectorAll('#dashboardEstados .dashboard-row')].map(r => r.textContent.replace(/\\s+/g, '')).sort().join('|')`);
+ok(est2 === 'Contactoinicial1|Endesarrollo1|Ennegociación1|Ganado1|Obraterminada1|Ofertado1|Perdido1', 'Por estado cuenta las 7 (histórico): ' + est2);
+const comp2 = await ev(`document.getElementById('dashboardCompetidores').textContent.replace(/\\s+/g, ' ').trim()`);
+ok(/Competidor X\s*1/.test(comp2), 'competidores incluye la perdida archivada: ' + comp2);
+ok((await ev(`document.getElementById('dashboardRegiones').textContent.replace(/\\s+/g, '')`)).includes('Madrid2'), 'Por región histórico (Madrid 2, ambas archivadas)');
+await ev(`switchView('obras')`);
+ok((await ev(visibles)).length === 3 && await ev(badge) === '3', 'listado de vivas: 3 (sin las archivadas), Archivadas 3');
+// Importación: una fila de obra archivada (ref 103) y otra viva (ref 102)
+const csv = 'Nº Ref;Proyecto;Región;Estado\n103;Nave Logística Sur;Madrid;Ofertado\n102;Torre Diagonal;Cataluña;En desarrollo\n';
+await ev(`importarExcel({ target: { files: [new File([${JSON.stringify(csv)}], 'imp.csv', { type: 'text/csv' })], value: '' } })`);
+const tImp = await ev(toastTxt);
+ok(tImp === '2 actualizadas. Aviso: ref 103 está archivada (actualizada, sigue en Obras archivadas)', 'resumen de importación avisa: ' + tImp);
+ok(db('e2e', "select (fecha_cierre is not null)::text from obras where id = 3") === 'true', 'BD: la importación no reabre la archivada');
+ok(await archivar([1, 6, 3], 'null') === '1,1,1', 'reabrir las 3 por la API');
+ok(db('e2e', "select count(*) from obras where fecha_cierre is not null") === '0', 'BD: 0 archivadas al terminar el bloque');
+ok(await recargar(8899), 'recarga');
 
 console.log('\n== iPhone 390x844 · Comercial Uno ==');
 await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 3, mobile: true });

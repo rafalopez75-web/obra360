@@ -10,8 +10,12 @@ Estado: preparado y verificado en banco local. **No desplegado. Migración NO ap
   - añade un apunte «Obra cerrada» al historial, en la misma transacción;
   - no borra nada ni toca el estado comercial.
 - **Obra archivada**:
-  - deja de aparecer en el listado, el buscador, los contadores (embudo, chips y panel de móvil), el dashboard, las notificaciones, «proyectos similares» y el Excel general de obras vivas;
+  - deja de aparecer en el listado, el buscador, los contadores (embudo, chips y panel de móvil), las notificaciones, «proyectos similares» y el Excel general de obras vivas;
   - no cuenta como vencida.
+- **Dashboard**:
+  - las métricas históricas incluyen las archivadas: Total, Ganadas, Por estado (también Perdido y Desestimada), Por región y Perdidas por competidor;
+  - **En proceso** y **Vencidas** solo cuentan obras vivas.
+- **Importación CSV**: si una fila corresponde a una obra archivada, se actualiza, sigue archivada y el resumen lo avisa, por ejemplo «Aviso: ref 103 está archivada…». En ese caso el aviso se mantiene 8 s.
 - **Obras archivadas**: botón junto al título.
   - En esta vista solo salen las cerradas, con su fecha de archivo.
   - Funcionan el buscador y los filtros de región y comercial. Excel exporta las archivadas.
@@ -51,7 +55,7 @@ Estado: preparado y verificado en banco local. **No desplegado. Migración NO ap
   - No pueden cerrar: un comercial ajeno, un usuario dado de baja ni un usuario anónimo.
   - Reabrir conserva el cierre. Dos ciclos de cierre y reapertura dejan 4 apuntes.
   - Una obra nueva no puede nacer archivada.
-- **Chrome real** (CDP; PostgREST 12 con la aplicación de la rama): **75/75**. Escenarios: escritorio 1440×900 como KAM, iPhone 390×844 como comercial, permisos de un comercial de otra región, y base de datos sin migrar.
+- **Chrome real** (CDP; PostgREST 12 con la aplicación de la rama): **87/87**. Incluye un bloque de dashboard con 3 obras archivadas (Total, En proceso, Ganadas, Vencidas, Por estado, Por región y competidores) y el aviso de importación. Escenarios: escritorio 1440×900 como KAM, iPhone 390×844 como comercial, permisos de un comercial de otra región, y base de datos sin migrar.
   - Se comprobó: login real, cancelar y confirmar, persistencia al recargar, listado, buscador, contadores, panel de móvil, dashboard, sugerencias, vista de archivadas y ficha completa.
   - También: reapertura, historial en BD, ningún error de JavaScript y ninguna petición fallida inesperada.
 
@@ -59,4 +63,3 @@ Estado: preparado y verificado en banco local. **No desplegado. Migración NO ap
 
 - Toque en dispositivo real. En Chrome 156 headless la emulación de toque se queda sin respuesta dentro de la app; con el `index.html` de producción pasa lo mismo, así que es del banco de pruebas. En móvil se comprobó que cada botón es alcanzable en su punto central y se pulsó ahí.
 - La Edge Function `send-push`, por si calcula vencidas por su cuenta (ya estaba pendiente). Hay que revisar que ignore las obras con `fecha_cierre`.
-- La importación CSV: si importas una fila con la referencia de una obra archivada, actualiza sus datos y la obra sigue archivada.
