@@ -1,0 +1,13 @@
+profiles 8 d1a3fa95c1bbd44b9c5603ca9f30f826
+obras 114 b1fbb1653df28f2d8d874a84781b6910
+historial 194 6791fe596b7457c336478f956e2004d6
+archivos 30 dc0ff03ee16e12de82af1f3ef9d157f4
+push_subscriptions 2 7f87eb955353efc018eb2c93df3b6d75
+Contacto inicial 42
+Desestimada 1
+En desarrollo 41
+Ganado 10
+Obra terminada 13
+Ofertado 3
+Perdido 4
+2

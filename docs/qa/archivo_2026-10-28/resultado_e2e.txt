@@ -1,0 +1,103 @@
+== Escritorio 1440x900 · KAM · base de datos migrada ==
+PASS login real por el formulario
+PASS obras vivas al inicio: 6 en "Todas activas" (Obra terminada aparte, como antes): Parking Plaza, Centro Salud Este, Colegio Mar, Nave Logística Sur, Torre Diagonal, Hospital Norte
+PASS contadores iniciales {"todas":6,"Contacto inicial":1,"En desarrollo":1,"Ofertado":1,"En negociación":1,"vencidas":1,"Ganado":1,"Perdido":1,"Desestimada":0,"Obra terminada":1}
+PASS Archivadas = 0 al inicio (ninguna obra se archiva sola)
+PASS el chip del estado "Obra terminada" ya no se llama "Histórico" (no se confunde con Archivadas)
+PASS BD: 0 obras con fecha_cierre al inicio
+PASS abrir ficha de Colegio Mar (Ganado)
+PASS ficha viva: botones Editar · Más información · Excel · Ficha PDF · Cerrar obra
+PASS pide confirmación: ¿Cerrar la obra «Colegio Mar»? / Pasará a Obras archivadas y dejará de aparecer entre las obras vivas, en búsquedas y en contadores. No se borra nada: datos, contactos, archivos e historial se conservan, y podrás reabrirla.
+PASS cancelar: no cambia nada en BD
+PASS tras confirmar, la ficha muestra "Obra archivada"
+PASS aviso: Obra cerrada. Está en Obras archivadas
+PASS ficha archivada: botones Reabrir obra · Excel · Ficha PDF
+PASS fecha y autor del cierre visibles
+PASS datos, empresas, archivos e historial previo se conservan
+PASS historial: apunte de cierre
+PASS el estado comercial sigue siendo Ganado
+PASS BD: estado intacto, fecha_cierre puesta, cerrada_por = KAM (Ganado|true|00000000-0000-0000-0000-00000000000a)
+PASS BD: archivos (1) e historial (2 + cierre) conservados
+PASS listado vivas: 5 y sin Colegio Mar
+PASS contadores sin la archivada {"todas":5,"Contacto inicial":1,"En desarrollo":1,"Ofertado":1,"En negociación":1,"vencidas":1,"Ganado":0,"Perdido":1,"Desestimada":0,"Obra terminada":1}
+PASS Archivadas = 1
+PASS buscar "Colegio" en vivas: 0
+PASS con la búsqueda, todos los contadores a 0 {"todas":0,"Contacto inicial":0,"En desarrollo":0,"Ofertado":0,"En negociación":0,"vencidas":0,"Ganado":0,"Perdido":0,"Desestimada":0,"Obra terminada":0}
+PASS filtro Ganado: no sale la archivada
+PASS buscador de proyectos similares (formulario): no la ofrece
+PASS dashboard: la archivada (Ganado) sigue en Total y Ganadas: Total=7 En proceso=5 Ganadas=1 Vencidas=1
+PASS dashboard "Por estado" (histórico) la incluye
+PASS recarga de página (sesión guardada)
+PASS tras recargar sigue archivada: vivas 5, Archivadas 1
+PASS vista "Obras archivadas"
+PASS archivo: solo Colegio Mar ["Colegio Mar"]
+PASS tarjeta con fecha de archivo
+PASS en el archivo no se muestra el embudo de obras vivas
+PASS subtítulo: 1 obra archivada
+PASS buscar en el archivo: la encuentra
+PASS buscar una viva desde el archivo: 0
+PASS filtro de comerciales del archivo: solo los de obras archivadas
+PASS consultar la ficha completa desde el archivo
+PASS ficha completa: empresas, archivos e historial (3)
+PASS reabrir pide confirmación: ¿Reabrir la obra «Colegio Mar»? / Volverá a las obras vivas con su estado actual (Ganado). El cierre y la reapertura quedan en el historial.
+PASS cancelar reapertura: sigue archivada
+PASS ficha reabierta, con apunte de reapertura
+PASS ficha viva otra vez: Editar · Más información · Excel · Ficha PDF · Cerrar obra
+PASS historial conserva cierre y reapertura (4 apuntes)
+PASS sale del archivo (archivo vacío)
+PASS archivo vacío explicado
+PASS vuelve a vivas: 6, Ganado 1, Archivadas 0
+PASS tras recargar sigue viva
+PASS BD: historial creacion,estado,cierre,reapertura
+PASS BD: viva, sin autor de cierre, estado Ganado
+
+== Dashboard con varias archivadas + importación CSV ==
+PASS archivar 3 obras por la API
+PASS recarga
+PASS archivadas fuera de "En proceso" y "Vencidas", dentro de Total y Ganadas: Total=7 En proceso=3 Ganadas=1 Vencidas=0
+PASS Por estado cuenta las 7 (histórico): Contactoinicial1|Endesarrollo1|Ennegociación1|Ganado1|Obraterminada1|Ofertado1|Perdido1
+PASS competidores incluye la perdida archivada: CCompetidor X1
+PASS Por región histórico (Madrid 2, ambas archivadas)
+PASS listado de vivas: 3 (sin las archivadas), Archivadas 3
+PASS resumen de importación avisa: 2 actualizadas. Aviso: ref 103 está archivada (actualizada, sigue en Obras archivadas)
+PASS BD: la importación no reabre la archivada
+PASS reabrir las 3 por la API
+PASS BD: 0 archivadas al terminar el bloque
+PASS recarga
+
+== iPhone 390x844 · Comercial Uno ==
+PASS login comercial
+PASS comercial ve sus 4 vivas de Cataluña (sin Obra terminada): Parking Plaza, Colegio Mar, Torre Diagonal, Hospital Norte
+PASS sin desplazamiento horizontal
+PASS botón Archivadas táctil (40 px)
+PASS pulsación alcanzable en #obrasList .obra-card
+PASS pulsación alcanzable en #sheetDetalleBody .form-actions button:last-child
+PASS cerrar desde el iPhone (Parking Plaza)
+PASS contador del filtro de móvil: 4 → 3
+PASS pulsación alcanzable en #btnFiltroEstado
+PASS panel de estado sin la archivada (Parking Plaza era En negociación): Todas activas3 | ⚠ Vencidas1 | Contacto inicial1 | En desarrollo1 | Ofertado0 | En negociación0 | Ganado1 | Perdido0 | Desestimada0 | Obra terminada1
+PASS pulsación alcanzable en #btnVistaArchivo
+PASS archivo en móvil: solo la cerrada y sin filtro de estado
+PASS archivo en móvil sin desplazamiento horizontal
+PASS pulsación alcanzable en #obrasList .obra-card
+PASS reabrir desde el iPhone
+
+== Escritorio · Comercial Dos: permisos ==
+PASS login comercial de Madrid
+PASS solo ve Madrid: Centro Salud Este, Nave Logística Sur
+PASS API: no puede cerrar una obra que no es suya {"n":0,"e":null}
+
+== Sin migración (orden de despliegue equivocado) ==
+PASS app nueva contra BD sin migrar: carga
+PASS todas siguen vivas (6), Archivadas 0
+PASS cerrar sin migración: aviso claro, sin romper la app
+PASS BD sin migrar: nada escrito
+
+== Errores ==
+respuestas >= 400: ["400 http://127.0.0.1:8898/rest/v1/obras?id=eq.2&fecha_cierre=is.null&select=id"]
+PASS sin peticiones fallidas inesperadas (solo el 400 provocado sin migración)
+errores consola: ["Error en cierre/reapertura: Object"]
+PASS sin errores de JavaScript
+
+RESULTADO: 87 PASS / 0 FAIL
+EXIT=0
