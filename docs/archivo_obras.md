@@ -1,6 +1,11 @@
 # Cerrar y archivar obras (rama `dev-archivo`, 28/10/2026)
 
-Estado: preparado y verificado en banco local. **No desplegado. Migración NO aplicada en producción.**
+Estado: **migración APLICADA en producción el 28/10/2026** (sha256 `82e7e8cc…`). App pendiente de merge tras la prueba de Rafa en iPhone.
+
+Verificación de la migración:
+- Antes y después: recuentos y huella md5 del contenido de `profiles` (8), `obras` (114; huella sin las 2 columnas nuevas), `historial` (194), `archivos` (30) y `push_subscriptions` (2). Son **idénticos**.
+- 0 obras archivadas. Triggers `obras_cierre_antes` y `obras_cierre_historial` creados, sin EXECUTE para anon ni authenticated.
+- PostgREST ve las columnas: `select=fecha_cierre,cerrada_por` responde 200.
 
 ## Qué hace
 
@@ -39,9 +44,7 @@ Estado: preparado y verificado en banco local. **No desplegado. Migración NO ap
 
 ## Despliegue (pendiente de OK)
 
-1. Aplicar la migración en `bigbxebupzryrdnovnum`.
-   - Es compatible con la app actual: solo añade columnas que admiten valor vacío.
-   - Comprobar después que hay 0 archivadas y el mismo total de obras.
+1. HECHO 28/10: migración aplicada en `bigbxebupzryrdnovnum`. Es compatible con la app actual en producción.
 2. Fusionar `dev-archivo` y desplegar `index.html`.
    - Si se desplegara antes de la migración, la app sigue funcionando y no archiva nada. Cerrar mostraría «Falta preparar la base de datos para archivar obras». Esto está probado.
 
