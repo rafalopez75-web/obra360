@@ -1,0 +1,21 @@
+PASS: tras migrar, 0 obras archivadas
+PASS: estados y datos previos intactos
+PASS: migrar no escribe historial
+PASS: cierre: fecha del servidor y autor = quien cierra (no lo que manda el cliente)
+PASS: cerrar no cambia el estado comercial
+PASS: cierre registrado en historial con nombre
+PASS: archivos e historial previos conservados
+PASS: fecha/autor de cierre no se reescriben
+PASS: sin cierre duplicado en historial
+PASS: edición normal no cambia el archivo
+PASS: comercial ajeno no puede cerrar
+PASS: usuario inactivo no puede cerrar
+PASS: anon no puede cerrar
+PASS: reabrir: vuelve a viva
+PASS: reapertura en historial con fecha del cierre
+PASS: el cierre anterior se conserva
+PASS: reabrir una viva no escribe historial
+PASS: insert con fecha_cierre nace viva
+PASS: dos ciclos = 4 eventos conservados
+PASS: funciones de trigger sin EXECUTE para anon/authenticated
+ TODAS PASS

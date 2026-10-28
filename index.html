@@ -333,6 +333,39 @@ input:focus, select:focus, textarea:focus { outline: none; }
   border-radius: 999px;
 }
 .filter-chip:hover { background: #f3f4f6; }
+/* Archivo: obras cerradas. Viven aparte de las obras vivas (ni listado, ni búsqueda, ni contadores) */
+#viewObras .page-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.btn-vista-archivo {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 6px 12px 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--navy);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-vista-archivo:hover { background: #f3f4f6; }
+.btn-vista-archivo .contador-badge { font-size: 13px; min-width: 24px; padding: 1px 7px; }
+#viewObras.vista-archivo .filtro-estado-btn,
+#viewObras.vista-archivo .filtro-escritorio { display: none !important; }
+.aviso-archivada {
+  background: #f3f4f6;
+  border: 1px solid #9ca3af;
+  border-left: 4px solid #4b5563;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 14px;
+  font-size: 13px;
+  color: #374151;
+}
+.aviso-archivada b { display: block; color: #111827; margin-bottom: 2px; }
 /* Filtro de estado. Escritorio: embudo (5 pasos) + chips; móvil: botón + panel inferior */
 .embudo {
   display: flex;
@@ -560,6 +593,7 @@ input:focus, select:focus, textarea:focus { outline: none; }
   color: var(--red);
   border-color: var(--red);
 }
+.tag-small.archivada { background: #f3f4f6; color: #374151; border-color: #9ca3af; }
 .obra-tipo {
   font-size: 15px;
   font-weight: 700;
@@ -1286,6 +1320,8 @@ textarea.form-input { resize: vertical; min-height: 70px; font-family: inherit; 
 .historial-dot.oferta { background: var(--orange); }
 .historial-dot.archivo { background: var(--navy); }
 .historial-dot.info { background: var(--gold); }
+.historial-dot.cierre { background: #4b5563; }
+.historial-dot.reapertura { background: var(--green); }
 .historial-content {
   background: var(--cream);
   padding: 10px 12px;
@@ -1567,8 +1603,11 @@ textarea.form-input { resize: vertical; min-height: 70px; font-family: inherit; 
   <div class="content">
     <div id="viewObras">
       <div class="page-header">
-        <div class="page-title">Obras</div>
-        <div class="page-subtitle" id="obrasSubtitle">Cargando...</div>
+        <div>
+          <div class="page-title" id="obrasTitulo">Obras</div>
+          <div class="page-subtitle" id="obrasSubtitle">Cargando...</div>
+        </div>
+        <button type="button" class="btn-vista-archivo" id="btnVistaArchivo" onclick="toggleVistaArchivo()">Archivadas</button>
       </div>
       <button type="button" class="filtro-estado-btn" id="btnFiltroEstado" onclick="abrirFiltroEstado()"><span class="actual">Estado: Todas activas</span><span class="flecha">▾</span></button>
       <div class="filtro-escritorio" id="filtroEstadoEscritorio"></div>
@@ -1597,8 +1636,8 @@ textarea.form-input { resize: vertical; min-height: 70px; font-family: inherit; 
         <div class="empty-icon">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
         </div>
-        <div class="empty-title">Sin obras</div>
-        <div class="empty-text">Crea la primera con el botón +</div>
+        <div class="empty-title" id="obrasEmptyTitulo">Sin obras</div>
+        <div class="empty-text" id="obrasEmptyTexto">Crea la primera con el botón +</div>
       </div>
     </div>
 
@@ -2092,6 +2131,7 @@ let profiles = [];
 let filtroEstado = 'todas';
 let filtroRegion = 'todas';
 let filtroComercial = 'todos';
+let vistaArchivo = false; // false: obras vivas · true: Obras archivadas
 let obraDetalleId = null;
 let obraEditandoId = null;
 let tipoSeleccionado = null;
@@ -2118,8 +2158,20 @@ function regionesPermitidas(profile) {
 function getTipo(id) {
   return TIPOS_OBRA.find(t => t.id === id) || { id: 'otros', nombre: 'Otros', svg: TIPOS_OBRA[TIPOS_OBRA.length-1].svg };
 }
+// Archivada = cerrada (fecha_cierre con valor). Es independiente del estado comercial o de obra:
+// una obra "Ganado" u "Obra terminada" sigue viva hasta que alguien la cierra.
+function estaArchivada(obra) {
+  return !!obra.fecha_cierre;
+}
+function obrasVivas() {
+  return obras.filter(o => !estaArchivada(o));
+}
+// Obras de la vista actual: vivas u Obras archivadas, nunca mezcladas
+function obrasDeLaVista() {
+  return obras.filter(o => estaArchivada(o) === vistaArchivo);
+}
 function esObraVencida(obra) {
-  if (!obra.fecha_seguimiento) return false;
+  if (!obra.fecha_seguimiento || estaArchivada(obra)) return false;
   // Estados cerrados: ya no necesitan seguimiento
   if (['Ganado', 'Perdido', 'Desestimada', 'Obra terminada'].includes(obra.estado)) return false;
   const hoy = new Date(); hoy.setHours(0,0,0,0);
@@ -2140,7 +2192,7 @@ function formatFechaHora(iso) {
   return `${dd}/${mm}/${yyyy} ${hh}:${min}`;
 }
 function tipoHistorialLabel(tipo) {
-  return ({creacion:'Obra creada',estado:'Cambio de estado',visita:'Visita',oferta:'Oferta',archivo:'Archivo',info:'Información',edicion:'Edición'})[tipo] || tipo;
+  return ({creacion:'Obra creada',estado:'Cambio de estado',visita:'Visita',oferta:'Oferta',archivo:'Archivo',info:'Información',edicion:'Edición',cierre:'Obra cerrada',reapertura:'Obra reabierta'})[tipo] || tipo;
 }
 function toast(msg, tipo='success') {
   const t = document.getElementById('toast');
@@ -2365,12 +2417,12 @@ async function cargarArchivosObra(obraId) {
   return data || [];
 }
 
-// Filtro del listado: quienes son comercial de al menos una obra que el usuario ve.
+// Filtro del listado: quienes son comercial de al menos una obra de la vista actual (vivas o archivadas).
 // `obras` ya viene filtrado por la RLS (sus regiones; KAM y director, todas).
 // Activos por nombre; los dados de baja al final con "(baja)".
 function llenarSelectComerciales() {
   const selFil = document.getElementById('filtroComercial');
-  const ids = new Set(obras.map(o => o.comercial_id).filter(Boolean));
+  const ids = new Set(obrasDeLaVista().map(o => o.comercial_id).filter(Boolean));
   const porNombre = (a, b) => a.nombre.localeCompare(b.nombre, 'es');
   const comerciales = profiles.filter(p => ids.has(p.id));
   const activos = comerciales.filter(p => p.activo !== false).sort(porNombre);
@@ -2397,7 +2449,8 @@ function render() {
   actualizarNotificaciones();
 }
 
-// Obras terminadas fuera de la vista normal; solo se ven cuando se filtra por Histórico
+// Estado "Obra terminada" fuera de "Todas activas"; se ven filtrando por ese estado.
+// No es lo mismo que archivar: las archivadas ni siquiera llegan aquí (ver obrasDeLaVista).
 function filtrarPorEstado(lista, estado) {
   if (estado !== 'Obra terminada') lista = lista.filter(o => o.estado !== 'Obra terminada');
   if (estado === 'vencidas') return lista.filter(esObraVencida);
@@ -2412,14 +2465,18 @@ function filtrarPorRegionYComercial(lista) {
 }
 
 function renderListaObras() {
-  let lista = filtrarPorRegionYComercial(filtrarPorEstado([...obras], filtroEstado));
+  // En el archivo no hay filtro de estado: se ven todas las cerradas, de cualquier estado
+  const base = obrasDeLaVista();
+  let lista = filtrarPorRegionYComercial(vistaArchivo ? base : filtrarPorEstado(base, filtroEstado));
 
   lista.sort((a, b) => {
+    if (vistaArchivo) return new Date(b.fecha_cierre) - new Date(a.fecha_cierre);
     if (a.solicitud_info !== b.solicitud_info) return b.solicitud_info ? 1 : -1;
     return b.id - a.id;
   });
 
-  document.getElementById('obrasSubtitle').textContent = `${lista.length} ${lista.length === 1 ? 'obra' : 'obras'}`;
+  renderCabeceraVista();
+  document.getElementById('obrasSubtitle').textContent = `${lista.length} ${lista.length === 1 ? 'obra' : 'obras'}${vistaArchivo ? (lista.length === 1 ? ' archivada' : ' archivadas') : ''}`;
 
   const cont = document.getElementById('obrasList');
   const empty = document.getElementById('obrasEmpty');
@@ -2434,6 +2491,27 @@ function renderListaObras() {
   cont.innerHTML = lista.map(cardObra).join('');
   // Las tarjetas se acaban de rehacer: vuelve a aplicar el texto del buscador
   aplicarBusquedaProyecto();
+}
+
+// Título, botón de cambio de vista y texto de "sin obras" según se vean las vivas o el archivo
+function renderCabeceraVista() {
+  document.getElementById('viewObras').classList.toggle('vista-archivo', vistaArchivo);
+  document.getElementById('obrasTitulo').textContent = vistaArchivo ? 'Obras archivadas' : 'Obras';
+  const nArchivadas = obras.length - obrasVivas().length;
+  const btn = document.getElementById('btnVistaArchivo');
+  btn.innerHTML = vistaArchivo ? '← Obras vivas'
+    : `Archivadas <span class="contador-badge">${nArchivadas}</span>`;
+  btn.setAttribute('aria-pressed', vistaArchivo ? 'true' : 'false');
+  document.getElementById('obrasEmptyTitulo').textContent = vistaArchivo ? 'Sin obras archivadas' : 'Sin obras';
+  document.getElementById('obrasEmptyTexto').textContent = vistaArchivo
+    ? 'Las obras cerradas aparecen aquí. Se cierran desde su ficha.' : 'Crea la primera con el botón +';
+}
+
+function toggleVistaArchivo() {
+  vistaArchivo = !vistaArchivo;
+  llenarSelectComerciales();
+  renderListaObras();
+  window.scrollTo(0, 0);
 }
 
 function cardObra(o) {
@@ -2457,6 +2535,7 @@ function cardObra(o) {
           <span class="tag-small">${escapeHtml(o.region) || '—'}</span>
           ${o.actua_kam ? '<span class="tag-small gold">KAM</span>' : ''}
           ${vencida ? '<span class="tag-small vencida">Vencida</span>' : ''}
+          ${estaArchivada(o) ? `<span class="tag-small archivada">Archivada ${formatFechaHora(o.fecha_cierre).slice(0, 10)}</span>` : ''}
         </div>
         <div class="obra-tipo">${escapeHtml(o.proyecto) || escapeHtml(tipoNombre)}</div>
         <div class="obra-dir">${escapeHtml(o.direccion) || '—'}${o.poblacion ? ', ' + escapeHtml(o.poblacion) : ''}</div>
@@ -2484,13 +2563,13 @@ function setFiltroEstado(estado) {
 const EMBUDO_PASOS = [['todas', 'Todas activas'], ['Contacto inicial', 'Contacto inicial'], ['En desarrollo', 'Desarrollo'],
   ['Ofertado', 'Ofertado'], ['En negociación', 'Negociación']];
 const EMBUDO_CHIPS = [['vencidas', '⚠ Vencidas'], ['Ganado', 'Ganado'], ['Perdido', 'Perdido'],
-  ['Desestimada', 'Desestimada'], ['Obra terminada', 'Histórico']];
+  ['Desestimada', 'Desestimada'], ['Obra terminada', 'Obra terminada']];
 
 // ---- Filtro de estado en móvil (panel inferior) ----
 const ESTADO_GRUPOS = [
   ['EN CURSO', ['Contacto inicial', 'En desarrollo', 'Ofertado', 'En negociación']],
   ['CERRADAS', ['Ganado', 'Perdido', 'Desestimada']],
-  ['HISTÓRICO', ['Obra terminada']]
+  ['TERMINADAS', ['Obra terminada']]
 ];
 // Mismo color que el texto de .estado-* (Obra terminada no tiene clase: gris)
 const ESTADO_PUNTO = {
@@ -2503,9 +2582,10 @@ function nombreFiltroEstado(estado) {
   return estado === 'todas' ? 'Todas activas' : estado === 'vencidas' ? '⚠ Vencidas' : estado;
 }
 
-// Base de los contadores: obras que el usuario ve (RLS) + región, comercial y buscador
+// Base de los contadores: obras vivas que el usuario ve (RLS) + región, comercial y buscador.
+// Las archivadas nunca cuentan aquí.
 function obrasParaContadores() {
-  let lista = filtrarPorRegionYComercial([...obras]);
+  let lista = filtrarPorRegionYComercial(obrasVivas());
   const inp = document.getElementById('searchProyecto');
   const q = inp ? quitarAcentos(inp.value.trim()) : '';
   if (q) {
@@ -2597,10 +2677,12 @@ function switchView(view) {
 }
 
 function renderDashboard() {
-  const total = obras.length;
-  const ganadas = obras.filter(o => o.estado === 'Ganado').length;
-  const enProceso = obras.filter(o => !['Ganado','Perdido','Desestimada'].includes(o.estado)).length;
-  const vencidas = obras.filter(esObraVencida).length;
+  // Resumen de obras vivas: las archivadas no cuentan
+  const vivas = obrasVivas();
+  const total = vivas.length;
+  const ganadas = vivas.filter(o => o.estado === 'Ganado').length;
+  const enProceso = vivas.filter(o => !['Ganado','Perdido','Desestimada'].includes(o.estado)).length;
+  const vencidas = vivas.filter(esObraVencida).length;
 
   document.getElementById('statsGrid').innerHTML = `
     <div class="stat-card"><div class="stat-label">Total</div><div class="stat-value">${total}</div></div>
@@ -2610,19 +2692,19 @@ function renderDashboard() {
   `;
 
   const porEstado = {};
-  obras.forEach(o => porEstado[o.estado] = (porEstado[o.estado]||0)+1);
+  vivas.forEach(o => porEstado[o.estado] = (porEstado[o.estado]||0)+1);
   document.getElementById('dashboardEstados').innerHTML = Object.entries(porEstado).map(([k,v]) =>
     `<div class="dashboard-row"><span class="estado-pill estado-${k.toLowerCase().replace(/\s/g,'')}">${k}</span><div class="dashboard-row-value">${v}</div></div>`
   ).join('') || '<div style="color:var(--text-2);font-size:12px;">Sin datos</div>';
 
   const porRegion = {};
-  obras.forEach(o => porRegion[o.region || '—'] = (porRegion[o.region || '—']||0)+1);
+  vivas.forEach(o => porRegion[o.region || '—'] = (porRegion[o.region || '—']||0)+1);
   document.getElementById('dashboardRegiones').innerHTML = Object.entries(porRegion).map(([k,v]) =>
     `<div class="dashboard-row"><div class="dashboard-row-label">${escapeHtml(k)}</div><div class="dashboard-row-value">${v}</div></div>`
   ).join('') || '<div style="color:var(--text-2);font-size:12px;">Sin datos</div>';
 
   const porComp = {};
-  obras.filter(o => (o.estado === 'Perdido' || o.estado === 'Desestimada') && o.perdida_contra).forEach(o => {
+  vivas.filter(o => (o.estado === 'Perdido' || o.estado === 'Desestimada') && o.perdida_contra).forEach(o => {
     porComp[o.perdida_contra] = (porComp[o.perdida_contra]||0)+1;
   });
   const compSorted = Object.entries(porComp).sort((a,b) => b[1]-a[1]);
@@ -2659,14 +2741,19 @@ function renderDetalle(obra) {
   const puedoPedirInfo = ['director','coordinador','kam'].includes(perfilUsuario.rol) &&
     obra.creado_por !== perfilUsuario.id;
   const vencida = esObraVencida(obra);
+  const archivada = estaArchivada(obra);
 
   let html = '';
+  if (archivada) {
+    const cerradaPor = profiles.find(p => p.id === obra.cerrada_por);
+    html += `<div class="aviso-archivada"><b>Obra archivada</b>Cerrada el ${formatFechaHora(obra.fecha_cierre)}${cerradaPor ? ' por ' + escapeHtml(cerradaPor.nombre) : ''}. No aparece entre las obras vivas. Reábrela para editarla.</div>`;
+  }
   if (vencida) {
     html += `<div class="aviso-vencida"><div class="aviso-vencida-icon">!</div><div><div class="aviso-vencida-title">Seguimiento vencido</div><div class="aviso-vencida-text">La fecha (${formatDate(obra.fecha_seguimiento)}) ya pasó. Actualiza el estado.</div></div></div>`;
   }
   if (obra.solicitud_info) {
     const esPropietario = obra.creado_por === perfilUsuario.id;
-    html += `<div class="request-banner"><div class="request-banner-icon">!</div><div class="request-banner-content"><div class="request-banner-title">Más información</div><div class="request-banner-text">${escapeHtml(obra.solicitud_info_por) || 'Solicitada'}</div></div>${esPropietario || ['director','coordinador','kam'].includes(perfilUsuario.rol) ? `<button class="btn-clear-request" onclick="resolverSolicitud()">Resuelto</button>` : ''}</div>`;
+    html += `<div class="request-banner"><div class="request-banner-icon">!</div><div class="request-banner-content"><div class="request-banner-title">Más información</div><div class="request-banner-text">${escapeHtml(obra.solicitud_info_por) || 'Solicitada'}</div></div>${!archivada && (esPropietario || ['director','coordinador','kam'].includes(perfilUsuario.rol)) ? `<button class="btn-clear-request" onclick="resolverSolicitud()">Resuelto</button>` : ''}</div>`;
   }
 
   html += `<div class="detail-header">
@@ -2676,6 +2763,7 @@ function renderDetalle(obra) {
       <span class="estado-pill ${estadoClass}">${obra.estado}</span>
       ${obra.actua_kam ? '<span class="tag-small gold">KAM</span>' : ''}
       ${vencida ? '<span class="tag-small vencida">Vencida</span>' : ''}
+      ${archivada ? '<span class="tag-small archivada">Archivada</span>' : ''}
     </div>
     <div class="detail-top">
       <div class="detail-icon">${tipo.svg}</div>
@@ -2686,10 +2774,12 @@ function renderDetalle(obra) {
     </div>
   </div>
   <div class="form-actions" style="margin-top:0;margin-bottom:20px;padding:0;">
-    ${puedoEditar ? `<button class="btn-action primary" onclick="abrirFormEditar(${obra.id})">Editar</button>` : ''}
-    ${puedoPedirInfo && !obra.solicitud_info ? `<button class="btn-action gold" onclick="pedirMasInfo(${obra.id})">Más información</button>` : ''}
+    ${puedoEditar && !archivada ? `<button class="btn-action primary" onclick="abrirFormEditar(${obra.id})">Editar</button>` : ''}
+    ${puedoEditar && archivada ? `<button class="btn-action primary" onclick="reabrirObra(${obra.id})">Reabrir obra</button>` : ''}
+    ${puedoPedirInfo && !obra.solicitud_info && !archivada ? `<button class="btn-action gold" onclick="pedirMasInfo(${obra.id})">Más información</button>` : ''}
     <button class="btn-action secondary" onclick="exportarObraExcel(${obra.id})">Excel</button>
     <button class="btn-action secondary" onclick="exportarObraPDF(${obra.id})">Ficha PDF</button>
+    ${puedoEditar && !archivada ? `<button class="btn-action secondary" onclick="cerrarObra(${obra.id})">Cerrar obra</button>` : ''}
   </div>`;
 
   if (obra.descripcion) {
@@ -3098,6 +3188,50 @@ async function addHistorial(obraId, tipo, descripcion) {
   });
 }
 
+// ============ CERRAR Y REABRIR (archivo de obras) ============
+// Cerrar no borra nada ni cambia el estado: pone fecha_cierre y la obra pasa a Obras archivadas.
+// La fecha, quién cierra y el apunte en el historial los pone la base de datos
+// (sql/migrations/2026-10-28_obras_cierre_archivo.sql), en la misma transacción.
+async function cerrarObra(id) {
+  const obra = obras.find(o => o.id === id);
+  if (!obra || estaArchivada(obra)) return;
+  if (!confirm(`¿Cerrar la obra «${obra.proyecto}»?\n\nPasará a Obras archivadas y dejará de aparecer entre las obras vivas, en búsquedas y en contadores. No se borra nada: datos, contactos, archivos e historial se conservan, y podrás reabrirla.`)) return;
+  await cambiarArchivoObra(obra, true);
+}
+
+async function reabrirObra(id) {
+  const obra = obras.find(o => o.id === id);
+  if (!obra || !estaArchivada(obra)) return;
+  if (!confirm(`¿Reabrir la obra «${obra.proyecto}»?\n\nVolverá a las obras vivas con su estado actual (${obra.estado}). El cierre y la reapertura quedan en el historial.`)) return;
+  await cambiarArchivoObra(obra, false);
+}
+
+async function cambiarArchivoObra(obra, cerrar) {
+  // El filtro por fecha_cierre evita cerrar dos veces (o reabrir) si otra persona se adelantó
+  let q = sb.from('obras').update({
+    fecha_cierre: cerrar ? new Date().toISOString() : null,
+    modificado_por: perfilUsuario.nombre,
+    modificado_en: new Date().toISOString()
+  }).eq('id', obra.id);
+  q = cerrar ? q.is('fecha_cierre', null) : q.not('fecha_cierre', 'is', null);
+  const { data, error } = await q.select('id');
+  if (error) {
+    console.error('Error en cierre/reapertura:', error);
+    const sinMigracion = error.code === 'PGRST204' || error.code === '42703';
+    toast(sinMigracion ? 'Falta preparar la base de datos para archivar obras' : 'Error: ' + (error.message || 'no se pudo guardar'), 'error');
+    return;
+  }
+  if (!data || data.length === 0) {
+    toast(`No se ha podido ${cerrar ? 'cerrar' : 'reabrir'}: sin permiso o ya estaba ${cerrar ? 'archivada' : 'viva'}`, 'error');
+  } else {
+    toast(cerrar ? 'Obra cerrada. Está en Obras archivadas' : 'Obra reabierta. Vuelve a las obras vivas');
+  }
+  await cargarObras();
+  render();
+  if (obras.some(o => o.id === obra.id)) await abrirDetalle(obra.id);
+  else cerrarSheet();
+}
+
 // ============ ARCHIVOS ============
 async function subirArchivo(e) {
   const file = e.target.files[0];
@@ -3313,11 +3447,11 @@ function esRolSuperior(profile) {
 }
 
 function actualizarNotificaciones() {
-  const solicitudes = obras.filter(o => o.solicitud_info && o.creado_por === perfilUsuario.id);
+  const solicitudes = obrasVivas().filter(o => o.solicitud_info && o.creado_por === perfilUsuario.id);
   // Para DC/coordinador/KAM: también contar obras nuevas no vistas
   let nuevas = 0;
   if (esRolSuperior(perfilUsuario)) {
-    nuevas = obras.filter(o => !obrasNuevasVistas.includes(o.id)).length;
+    nuevas = obrasVivas().filter(o => !obrasNuevasVistas.includes(o.id)).length;
     obrasNuevasCount = nuevas;
   }
   const total = solicitudes.length + nuevas;
@@ -3333,9 +3467,9 @@ function marcarObrasComoVistas() {
 }
 
 function abrirNotificaciones() {
-  const solicitudes = obras.filter(o => o.solicitud_info && o.creado_por === perfilUsuario.id);
+  const solicitudes = obrasVivas().filter(o => o.solicitud_info && o.creado_por === perfilUsuario.id);
   const nuevas = esRolSuperior(perfilUsuario)
-    ? obras.filter(o => !obrasNuevasVistas.includes(o.id))
+    ? obrasVivas().filter(o => !obrasNuevasVistas.includes(o.id))
     : [];
   const body = document.getElementById('sheetNotifBody');
   let html = '';
@@ -3739,16 +3873,18 @@ function filaExportObra(o) {
     ];
 }
 
+// Exporta la vista actual: obras vivas, o las archivadas si se está en el archivo
 function exportarExcel() {
-  if (obras.length === 0) { toast('Sin obras para exportar', 'error'); return; }
-  const filas = obras.map(filaExportObra);
+  const lista = obrasDeLaVista();
+  if (lista.length === 0) { toast(vistaArchivo ? 'Sin obras archivadas para exportar' : 'Sin obras para exportar', 'error'); return; }
+  const filas = lista.map(filaExportObra);
   const esc = v => { const s = String(v == null ? '' : v); return (s.includes(';') || s.includes('"') || s.includes('\n')) ? '"' + s.replace(/"/g, '""') + '"' : s; };
   const csv = '\uFEFF' + [EXPORT_HEADERS.join(';'), ...filas.map(f => f.map(esc).join(';'))].join('\n');
   const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `Interflex_Obras_${new Date().toISOString().slice(0,10)}.csv`;
+  link.download = `Interflex_Obras${vistaArchivo ? '_Archivadas' : ''}_${new Date().toISOString().slice(0,10)}.csv`;
   link.click();
   URL.revokeObjectURL(url);
   toast('Excel descargado');
@@ -4058,7 +4194,8 @@ function pdfDefinicion(obra, historial, archivos, fotos, logo) {
           fillColor: estadoFondo, margin: [6, 2, 6, 1] }]] },
         layout: { hLineWidth: () => 0.75, vLineWidth: () => 0.75, hLineColor: () => estadoTexto, vLineColor: () => estadoTexto,
           paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 } },
-      vencida ? { width: 'auto', text: 'VENCIDA', bold: true, fontSize: 8, color: '#b91c1c', margin: [8, 3, 0, 0] } : { text: '' }
+      vencida ? { width: 'auto', text: 'VENCIDA', bold: true, fontSize: 8, color: '#b91c1c', margin: [8, 3, 0, 0] } : { text: '' },
+      estaArchivada(obra) ? { width: 'auto', text: `ARCHIVADA ${formatFechaHora(obra.fecha_cierre).slice(0, 10)}`, bold: true, fontSize: 8, color: '#374151', margin: [8, 3, 0, 0] } : { text: '' }
     ], margin: [0, 6, 0, 6]
   });
   content.push({ text: [obra.poblacion, obra.region, comercial && comercial.nombre,
@@ -4376,14 +4513,14 @@ function buscarProyectoSimilar(texto) {
   
   if (!q || q.length < 1) {
     // Modo lupa vacía: mostrar últimas 6 obras
-    sims = obras.filter(o => o.id !== idEdit && o.proyecto).slice(0, 6);
+    sims = obrasVivas().filter(o => o.id !== idEdit && o.proyecto).slice(0, 6);
     modoRecientes = true;
   } else if (q.length < 2) {
     cont.style.display = 'none';
     return;
   } else {
-    // Búsqueda por similitud: contiene la cadena O cada palabra significativa coincide
-    sims = obras.filter(o => {
+    // Búsqueda por similitud (solo obras vivas): contiene la cadena O cada palabra significativa coincide
+    sims = obrasVivas().filter(o => {
       if (idEdit && o.id === idEdit) return false;
       const proy = quitarAcentos(o.proyecto || '');
       if (!proy) return false;
